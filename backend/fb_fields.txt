@@ -1,0 +1,5 @@
+ALL fields for FacebookPostMetadataInput:
+ - type: PostTypeFacebook (MANDATORY)
+ - annotations: None (OPTIONAL)
+ - linkAttachment: LinkAttachmentInput (OPTIONAL)
+ - firstComment: String (OPTIONAL)

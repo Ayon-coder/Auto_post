@@ -14,12 +14,14 @@ try:
     from linkedin.imgbb_client import upload_image_to_imgbb
     from X.create_post import XPoster
     from instagram.create_post import InstagramPoster
+    from facebook.create_post import FacebookPoster
 except ImportError:
     # If run as a package (on Vercel)
     from .linkedin.create_post import LinkedIn
     from .linkedin.imgbb_client import upload_image_to_imgbb
     from .X.create_post import XPoster
     from .instagram.create_post import InstagramPoster
+    from .facebook.create_post import FacebookPoster
 
 # Robust path detection for Vercel
 _HERE = Path(__file__).resolve().parent
@@ -223,6 +225,18 @@ def create_post():
         except Exception as e:
             return (2, f"Instagram: Error ({str(e)})", False, None)
 
+    def _facebook_job():
+        try:
+            data = platform_data.get('facebook')
+            if not data: return (3, "Facebook: Skipped", False, None)
+            poster = FacebookPoster(data['content'], image_urls=data['image_urls'])
+            if not poster.channel_id:
+                return (3, "Facebook: Failed (No valid channel)", False, None)
+            link = poster.create_post()
+            return (3, f"Facebook: Success ({poster.channel_name})", True, link)
+        except Exception as e:
+            return (3, f"Facebook: Error ({str(e)})", False, None)
+
     try:
         jobs = []
         if "linkedin" in platforms:
@@ -231,6 +245,8 @@ def create_post():
             jobs.append(_x_job)
         if "instagram" in platforms:
             jobs.append(_instagram_job)
+        if "facebook" in platforms:
+            jobs.append(_facebook_job)
 
         links = {}
         if jobs:
@@ -245,7 +261,8 @@ def create_post():
                 if ok:
                     success_count += 1
                     if link:
-                        platform_name = "linkedin" if prio == 0 else ("x" if prio == 1 else "instagram")
+                        platform_map = {0: "linkedin", 1: "x", 2: "instagram", 3: "facebook"}
+                        platform_name = platform_map.get(prio, "unknown")
                         links[platform_name] = link
 
         if success_count > 0:

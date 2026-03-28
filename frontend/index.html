@@ -74,6 +74,10 @@
                             <input type="checkbox" name="platforms" value="instagram" checked class="platform-checkbox w-5 h-5 rounded border-slate-300 text-pink-600 focus:ring-pink-500">
                             <span class="ml-3 text-slate-700 font-medium">Instagram</span>
                         </label>
+                        <label class="inline-flex items-center cursor-pointer p-3 border border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100 transition">
+                            <input type="checkbox" name="platforms" value="facebook" checked class="platform-checkbox w-5 h-5 rounded border-slate-300 text-blue-700 focus:ring-blue-600">
+                            <span class="ml-3 text-slate-700 font-medium">Facebook</span>
+                        </label>
                     </div>
                 </div>
 
@@ -139,8 +143,8 @@
                 const view = document.createElement('a');
                 view.href = url; view.target = '_blank';
                 view.className = 'inline-flex items-center px-3 py-1 bg-white border border-emerald-200 rounded-lg text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition shadow-sm';
-                const brandBg = platform === 'linkedin' ? 'bg-blue-600' : (platform === 'x' ? 'bg-black' : 'bg-pink-600');
-                const brandLabel = platform === 'linkedin' ? 'in' : (platform === 'x' ? 'x' : 'ig');
+                const brandBg = platform === 'linkedin' ? 'bg-blue-600' : (platform === 'x' ? 'bg-black' : (platform === 'instagram' ? 'bg-pink-600' : 'bg-blue-700'));
+                const brandLabel = platform === 'linkedin' ? 'in' : (platform === 'x' ? 'x' : (platform === 'instagram' ? 'ig' : 'fb'));
                 view.innerHTML = `<span class="${brandBg} text-white rounded p-0.5 mr-1.5 text-[8px] uppercase">${brandLabel}</span> View`;
                 const copy = document.createElement('button');
                 copy.type = 'button';
@@ -166,13 +170,14 @@
     // --- State Management ---
     const state = {
         mode: 'same', // 'same' or 'custom'
-        selectedPlatforms: ['linkedin', 'x', 'instagram'],
+        selectedPlatforms: ['linkedin', 'x', 'instagram', 'facebook'],
         // Data for each platform (including 'global' for same mode)
         platformData: {
             global: { content: '', files: [] },
             linkedin: { content: '', files: [] },
             x: { content: '', files: [] },
-            instagram: { content: '', files: [] }
+            instagram: { content: '', files: [] },
+            facebook: { content: '', files: [] }
         }
     };
 
@@ -188,6 +193,7 @@
                 if (p === 'linkedin') label = 'LinkedIn Content';
                 else if (p === 'x') label = 'X (Twitter) Content';
                 else if (p === 'instagram') label = 'Instagram Content';
+                else if (p === 'facebook') label = 'Facebook Content';
                 container.appendChild(createSection(p, label));
             });
         }
@@ -203,12 +209,12 @@
         
         const platformData = state.platformData[pKey];
         const isGlobal = pKey === 'global';
-        const brandColor = pKey === 'linkedin' ? 'text-blue-600' : (pKey === 'x' ? 'text-slate-900' : 'text-slate-500');
+        const brandColor = pKey === 'linkedin' ? 'text-blue-600' : (pKey === 'x' ? 'text-slate-900' : (pKey === 'facebook' ? 'text-blue-700' : 'text-slate-500'));
 
         section.innerHTML = `
             <div class="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between">
                 <h3 class="font-bold ${brandColor} flex items-center">
-                    <span class="mr-2">${isGlobal ? '📋' : (pKey === 'linkedin' ? 'in' : (pKey === 'x' ? '𝕏' : '📸'))}</span> ${title}
+                    <span class="mr-2">${isGlobal ? '📋' : (pKey === 'linkedin' ? 'in' : (pKey === 'x' ? '𝕏' : (pKey === 'instagram' ? '📸' : '👤')))}</span> ${title}
                 </h3>
             </div>
             <div class="p-6 space-y-4">

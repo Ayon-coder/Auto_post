@@ -18,7 +18,7 @@ def _token_cache_key(token: str) -> str:
 
 
 def _linkedin_buffer_token():
-    return (os.getenv("LINKEDIN_BUFFER_ACCESS_TOKEN") or "").strip()
+    return (os.getenv("LINKEDIN_FB_BUFFER_ACCESS_TOKEN") or os.getenv("LINKEDIN_BUFFER_ACCESS_TOKEN") or "").strip()
 
 
 class TokenManager:
@@ -31,8 +31,8 @@ class TokenManager:
         self.access_token = _linkedin_buffer_token()
         if not self.access_token:
             raise ValueError(
-                "LinkedIn Buffer token missing. Set LINKEDIN_BUFFER_ACCESS_TOKEN in your .env "
-                "(separate from X - Buffer API key tied to your LinkedIn channel)."
+                "LinkedIn/Facebook Buffer token missing. Set LINKEDIN_FB_BUFFER_ACCESS_TOKEN in your .env "
+                "(separate from X/Instagram - Buffer API key tied to your LinkedIn/Facebook channels)."
             )
 
         key = _token_cache_key(self.access_token)
@@ -46,8 +46,8 @@ class TokenManager:
 
         _valid_until.pop(key, None)
         raise ValueError(
-            "LinkedIn Buffer token is invalid or expired. Regenerate it at "
-            "https://buffer.com/developers/api and update LINKEDIN_BUFFER_ACCESS_TOKEN in your .env."
+            "LinkedIn/Facebook Buffer token is invalid or expired. Regenerate it at "
+            "https://buffer.com/developers/api and update LINKEDIN_FB_BUFFER_ACCESS_TOKEN in your .env."
         )
 
     def _is_token_valid(self):

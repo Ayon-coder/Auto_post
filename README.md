@@ -1,10 +1,10 @@
 # AutoPost Dashboard
 
-AutoPost is a streamlined dashboard for automating and managing your social media posts. It allows you to cross-post content and images to **LinkedIn** and **X (Twitter)** simultaneously using the Buffer API, with integrated image hosting via ImgBB.
+AutoPost is a streamlined dashboard for automating and managing your social media posts. It allows you to cross-post content and images to **LinkedIn**, **X (Twitter)**, **Instagram**, and **Facebook** simultaneously using the Buffer API, with integrated image hosting via ImgBB.
 
 ## 🚀 Features
 
-- **Multi-Platform Support**: Post to LinkedIn and X with a single click.
+- **Multi-Platform Support**: Post to LinkedIn, X (Twitter), Instagram, and Facebook with a single click.
 - **Image Uploads**: Integrated ImgBB support for hosting post images.
 - **Responsive Dashboard**: A clean, modern web interface for creating posts.
 - **Vercel Ready**: Pre-configured for easy deployment as a serverless application.
@@ -45,7 +45,7 @@ pip install -r requirements.txt
 Create a `.env` file in the root directory based on `.env.example`:
 
 ```ini
-LINKEDIN_BUFFER_ACCESS_TOKEN=your_token_here
+LINKEDIN_FB_BUFFER_ACCESS_TOKEN=your_token_here
 X_INSTA_BUFFER_ACCESS_TOKEN=your_token_here
 GRAPHQL_URL=https://api.buffer.com/graphql
 IMGBB_API_KEY=your_imgbb_key_here
