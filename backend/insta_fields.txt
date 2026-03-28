@@ -1,0 +1,7 @@
+ALL fields for InstagramPostMetadataInput:
+ - type: PostType (MANDATORY)
+ - firstComment: String (OPTIONAL)
+ - link: String (OPTIONAL)
+ - geolocation: InstagramGeolocationInput (OPTIONAL)
+ - shouldShareToFeed: Boolean (MANDATORY)
+ - stickerFields: InstagramStickerFieldsInput (OPTIONAL)

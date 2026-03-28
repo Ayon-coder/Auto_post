@@ -112,7 +112,8 @@ class InstagramPoster:
                 "schedulingType": "automatic",
                 "metadata": {
                     "instagram": {
-                        "type": "post"
+                        "type": "post",
+                        "shouldShareToFeed": True
                     }
                 }
             }
