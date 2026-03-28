@@ -10,7 +10,6 @@
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
         .glass { background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px); }
-        /* Loader animation */
         .loader {
             border: 3px solid #f3f3f3;
             border-top: 3px solid #3498db;
@@ -30,19 +29,17 @@
 </head>
 <body class="min-h-screen p-4 md:p-8">
 
-<div class="max-w-3xl mx-auto space-y-8">
+<div class="max-w-4xl mx-auto space-y-8">
     
     <!-- Header -->
     <header class="text-center space-y-2">
         <h1 class="text-4xl font-bold text-slate-800 tracking-tight">AutoPost Dashboard</h1>
-        <p class="text-slate-500">Cross-post with Buffer. API keys and tokens are read from the server <code class="text-slate-600 bg-slate-100 px-1 rounded">.env</code> file.</p>
+        <p class="text-slate-500">Cross-post with Buffer. Manage unique content for every platform.</p>
     </header>
 
-    <!-- Global Alert Box (Hidden by default) -->
+    <!-- Global Alert Box -->
     <div id="alertBox" class="hidden p-4 rounded-xl border shadow-sm flex items-center space-x-3 transition-all">
-        <svg id="alertIcon" class="w-6 h-6 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-            <!-- Icon path set via JS -->
-        </svg>
+        <svg id="alertIcon" class="w-6 h-6 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"></svg>
         <span id="alertMessage" class="font-medium flex-1"></span>
         <button onclick="hideAlert()" class="text-slate-400 hover:text-slate-600 focus:outline-none">
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -51,309 +48,293 @@
         </button>
     </div>
 
-    <div class="grid grid-cols-1 gap-8">
-        
-        <!-- Post Creation Card -->
+    <form id="postForm" class="space-y-8">
+        <!-- Configuration Card -->
         <div class="glass rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
             <div class="bg-slate-50 border-b border-slate-200 px-6 py-4">
                 <h2 class="text-xl font-semibold text-slate-800 flex items-center">
-                    <svg class="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
-                    Create Cross-Platform Post
+                    <svg class="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Post Configuration
                 </h2>
             </div>
-            <form id="postForm" class="p-6 space-y-6">
-                
+            <div class="p-6 space-y-6">
+                <!-- Destinations -->
                 <div class="space-y-3">
-                    <span class="block text-sm font-medium text-slate-700">Select Post Destinations:</span>
-                    <div class="flex items-center space-x-6 p-4 border border-slate-200 rounded-xl bg-slate-50">
-                        <label class="inline-flex items-center cursor-pointer">
-                            <input type="checkbox" name="platforms" value="linkedin" checked class="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
-                            <span class="ml-3 text-slate-700 font-medium flex items-center">
-                                <span class="bg-blue-600 text-white rounded p-1 mr-2 text-xs">in</span> LinkedIn
-                            </span>
+                    <span class="block text-sm font-medium text-slate-700">Select Platforms:</span>
+                    <div class="flex flex-wrap gap-4">
+                        <label class="inline-flex items-center cursor-pointer p-3 border border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100 transition">
+                            <input type="checkbox" name="platforms" value="linkedin" checked class="platform-checkbox w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500">
+                            <span class="ml-3 text-slate-700 font-medium">LinkedIn</span>
                         </label>
-                        <label class="inline-flex items-center cursor-pointer">
-                            <input type="checkbox" name="platforms" value="x" checked class="w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900">
-                            <span class="ml-3 text-slate-700 font-medium flex items-center">
-                                <span class="bg-black text-white rounded p-1 mr-2 text-xs font-bold leading-none" style="padding-bottom: 2px;">𝕏</span> X (Twitter)
-                            </span>
+                        <label class="inline-flex items-center cursor-pointer p-3 border border-slate-200 rounded-xl bg-slate-50 hover:bg-slate-100 transition">
+                            <input type="checkbox" name="platforms" value="x" checked class="platform-checkbox w-5 h-5 rounded border-slate-300 text-slate-900 focus:ring-slate-900">
+                            <span class="ml-3 text-slate-700 font-medium">X (Twitter)</span>
                         </label>
                     </div>
                 </div>
 
-                <div class="space-y-2">
-                    <label class="block text-sm font-medium text-slate-700">Post Content</label>
-                    <textarea name="content" id="postContent" rows="4" required class="w-full rounded-xl border-slate-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-3" placeholder="What do you want to share?"></textarea>
-                </div>
-
-                <div class="space-y-2">
-                    <label class="block text-sm font-medium text-slate-700">Attach Images (Optional)</label>
-                    <div class="flex items-center justify-center w-full">
-                        <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-slate-300 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition duration-150">
-                            <div class="flex flex-col items-center justify-center pt-5 pb-6">
-                                <svg class="w-8 h-8 mb-3 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                                <p class="mb-2 text-sm text-slate-500" id="fileLabel"><span class="font-semibold">Click to upload</span> or drag and drop</p>
-                                <p class="text-xs text-slate-500">Multiple images supported. PNG, JPG or GIF (MAX. 10MB each)</p>
-                            </div>
-                            <input type="file" name="images" id="fileInput" class="hidden" accept="image/*" multiple />
+                <!-- Mode Selector -->
+                <div class="space-y-3">
+                    <span class="block text-sm font-medium text-slate-700">Content Mode:</span>
+                    <div class="grid grid-cols-2 gap-4">
+                        <label class="relative flex flex-col p-4 border rounded-xl cursor-pointer focus:outline-none transition group hover:shadow-md border-blue-500 bg-blue-50" id="modeSameLabel">
+                            <input type="radio" name="mode" value="same" checked class="sr-only">
+                            <span class="block text-sm font-bold text-blue-700">Same Content</span>
+                            <span class="mt-1 block text-xs text-blue-600">Post the same text and images to all platforms.</span>
+                        </label>
+                        <label class="relative flex flex-col p-4 border rounded-xl cursor-pointer focus:outline-none transition group hover:shadow-md border-slate-200 bg-white" id="modeCustomLabel">
+                            <input type="radio" name="mode" value="custom" class="sr-only">
+                            <span class="block text-sm font-bold text-slate-700">Custom Content</span>
+                            <span class="mt-1 block text-xs text-slate-500">Create unique posts for each target platform.</span>
                         </label>
                     </div>
-                    
-                    <!-- Image Preview Container -->
-                    <div id="imagePreviewContainer" class="flex flex-wrap gap-3 mt-4"></div>
                 </div>
-
-                <button type="submit" id="submitPostBtn" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-xl shadow-sm text-sm font-semibold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors disabled:opacity-75 disabled:cursor-not-allowed">
-                    <span id="submitPostText">Publish to Selected</span>
-                </button>
-            </form>
+            </div>
         </div>
-    </div>
+
+        <!-- Dynamic Content Sections -->
+        <div id="dynamicInputs" class="space-y-6"></div>
+
+        <!-- Submit Button -->
+        <div class="flex justify-end pt-4">
+            <button type="submit" id="submitPostBtn" class="w-full md:w-auto min-w-[200px] flex justify-center py-4 px-8 border border-transparent rounded-2xl shadow-lg text-lg font-bold text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all disabled:opacity-75 disabled:cursor-not-allowed">
+                <span id="submitPostText">Publish Post</span>
+            </button>
+        </div>
+    </form>
 </div>
 
 <script>
-    function sameOriginApiBase() {
-        if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
-            return window.location.origin.replace(/\/$/, '') + '/api';
-        }
-        return '';
-    }
-
-    /**
-     * API base URL comes from server .env BACKEND_API_BASE_URL (injected as window.__BACKEND_API_BASE__)
-     * or GET /api/config, or same-origin fallback.
-     */
+    // --- API Configuration ---
     async function resolveApiBaseUrl() {
         if (typeof window.__BACKEND_API_BASE__ === 'string' && window.__BACKEND_API_BASE__.length) {
             return window.__BACKEND_API_BASE__.replace(/\/$/, '');
         }
-        const fallback = sameOriginApiBase();
         try {
             const res = await fetch('/api/config');
-            if (!res.ok) throw new Error('config fetch failed');
-            const data = await res.json();
-            let base = (data.api_base_url || '').trim().replace(/\/$/, '');
-            if (!base) return fallback;
-            return base;
-        } catch {
-            return fallback;
-        }
+            if (res.ok) {
+                const data = await res.json();
+                return (data.api_base_url || '').trim().replace(/\/$/, '');
+            }
+        } catch {}
+        return window.location.origin.replace(/\/$/, '') + '/api';
     }
 
-    async function copyToClipboard(text, btn) {
-        try {
-            await navigator.clipboard.writeText(text);
-            const originalContent = btn.innerHTML;
-            btn.innerHTML = '<svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg> Copied!';
-            btn.classList.add('bg-emerald-100', 'border-emerald-300');
-            setTimeout(() => {
-                btn.innerHTML = originalContent;
-                btn.classList.remove('bg-emerald-100', 'border-emerald-300');
-            }, 2000);
-        } catch (err) {
-            console.error('Failed to copy text: ', err);
-            alert('Failed to copy link.');
-        }
-    }
-
+    // --- UI Helpers ---
     function showAlert(message, isSuccess, links = {}) {
         const alertBox = document.getElementById('alertBox');
         const alertIcon = document.getElementById('alertIcon');
         const alertMessage = document.getElementById('alertMessage');
-        
-        // Clear previous content but keep the icon and message span
         alertMessage.innerHTML = `<span>${message}</span>`;
-        
         if (isSuccess && Object.keys(links).length > 0) {
-            const linksContainer = document.createElement('div');
-            linksContainer.className = 'mt-3 flex flex-wrap gap-2';
-            
-            for (const [platform, url] of Object.entries(links)) {
+            const container = document.createElement('div');
+            container.className = 'mt-3 flex flex-wrap gap-2';
+            Object.entries(links).forEach(([platform, url]) => {
                 const group = document.createElement('div');
                 group.className = 'flex items-center space-x-1';
-                
-                // View Link Button
-                const viewBtn = document.createElement('a');
-                viewBtn.href = url;
-                viewBtn.target = '_blank';
-                viewBtn.className = 'inline-flex items-center px-3 py-1 bg-white border border-emerald-200 rounded-lg text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition shadow-sm';
-                
-                let iconStr = platform === 'linkedin' ? 
-                    '<span class="bg-blue-600 text-white rounded p-0.5 mr-1.5 text-[10px]">in</span>' : 
-                    '<span class="bg-black text-white rounded p-0.5 mr-1.5 text-[10px] uppercase font-bold text-[8px]">X</span>';
-                
-                viewBtn.innerHTML = `${iconStr} View on ${platform === 'linkedin' ? 'LinkedIn' : 'X'}`;
-                
-                // Copy Link Button
-                const copyBtn = document.createElement('button');
-                copyBtn.type = 'button';
-                copyBtn.className = 'inline-flex items-center px-3 py-1 bg-white border border-emerald-200 rounded-lg text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition shadow-sm';
-                copyBtn.innerHTML = '<svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"/></svg> Copy';
-                copyBtn.onclick = () => copyToClipboard(url, copyBtn);
-                
-                group.appendChild(viewBtn);
-                group.appendChild(copyBtn);
-                linksContainer.appendChild(group);
-            }
-            alertMessage.appendChild(linksContainer);
+                const view = document.createElement('a');
+                view.href = url; view.target = '_blank';
+                view.className = 'inline-flex items-center px-3 py-1 bg-white border border-emerald-200 rounded-lg text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition shadow-sm';
+                view.innerHTML = `<span class="bg-${platform === 'linkedin' ? 'blue-600' : 'black'} text-white rounded p-0.5 mr-1.5 text-[8px] uppercase">${platform === 'linkedin' ? 'in' : 'x'}</span> View`;
+                const copy = document.createElement('button');
+                copy.type = 'button';
+                copy.className = 'inline-flex items-center px-3 py-1 bg-white border border-emerald-200 rounded-lg text-xs font-semibold text-emerald-700 hover:bg-emerald-100 transition shadow-sm';
+                copy.innerHTML = 'Copy';
+                copy.onclick = async () => {
+                    await navigator.clipboard.writeText(url);
+                    copy.innerHTML = 'Copied!';
+                    setTimeout(() => copy.innerHTML = 'Copy', 2000);
+                };
+                group.appendChild(view); group.appendChild(copy); container.appendChild(group);
+            });
+            alertMessage.appendChild(container);
         }
         alertBox.className = `p-4 rounded-xl border shadow-sm flex items-center space-x-3 transition-all mb-8 ${isSuccess ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'}`;
-        if (isSuccess) {
-            alertIcon.innerHTML = `<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>`;
-        } else {
-            alertIcon.innerHTML = `<path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>`;
-        }
+        alertIcon.innerHTML = isSuccess ? '<path d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/>' : '<path d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"/>';
+        alertIcon.setAttribute('viewBox', '0 0 20 20');
         window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
-    function hideAlert() {
-        document.getElementById('alertBox').classList.add('hidden');
+    function hideAlert() { document.getElementById('alertBox').classList.add('hidden'); }
+
+    // --- State Management ---
+    const state = {
+        mode: 'same', // 'same' or 'custom'
+        selectedPlatforms: ['linkedin', 'x'],
+        // Data for each platform (including 'global' for same mode)
+        platformData: {
+            global: { content: '', files: [] },
+            linkedin: { content: '', files: [] },
+            x: { content: '', files: [] }
+        }
+    };
+
+    function renderInputs() {
+        const container = document.getElementById('dynamicInputs');
+        container.innerHTML = '';
+
+        if (state.mode === 'same') {
+            container.appendChild(createSection('global', 'Shared Post Content'));
+        } else {
+            state.selectedPlatforms.forEach(p => {
+                const label = p === 'linkedin' ? 'LinkedIn Content' : 'X (Twitter) Content';
+                container.appendChild(createSection(p, label));
+            });
+        }
+        
+        if (state.selectedPlatforms.length === 0) {
+            container.innerHTML = '<div class="p-8 text-center text-slate-500 italic bg-slate-50 rounded-2xl border-2 border-dashed border-slate-200">Select at least one platform to begin.</div>';
+        }
     }
 
-    document.addEventListener('DOMContentLoaded', async function () {
-        const API_BASE_URL = await resolveApiBaseUrl();
+    function createSection(pKey, title) {
+        const section = document.createElement('div');
+        section.className = 'glass rounded-2xl shadow-sm border border-slate-200 overflow-hidden';
+        
+        const platformData = state.platformData[pKey];
+        const isGlobal = pKey === 'global';
+        const brandColor = pKey === 'linkedin' ? 'text-blue-600' : (pKey === 'x' ? 'text-slate-900' : 'text-slate-500');
 
-        const fileInput = document.getElementById('fileInput');
-        const labelText = document.getElementById('fileLabel');
-        const postForm = document.getElementById('postForm');
-        const submitPostBtn = document.getElementById('submitPostBtn');
-        const submitPostText = document.getElementById('submitPostText');
-        const previewContainer = document.getElementById('imagePreviewContainer');
+        section.innerHTML = `
+            <div class="bg-white border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+                <h3 class="font-bold ${brandColor} flex items-center">
+                    <span class="mr-2">${isGlobal ? '📋' : (pKey === 'linkedin' ? 'in' : '𝕏')}</span> ${title}
+                </h3>
+            </div>
+            <div class="p-6 space-y-4">
+                <textarea class="content-input w-full rounded-xl border-slate-200 shadow-sm focus:border-blue-500 focus:ring-blue-500 border p-4 text-slate-600" 
+                    rows="4" placeholder="Craft your message..." data-key="${pKey}">${platformData.content}</textarea>
+                
+                <div class="file-upload-zone relative">
+                    <label class="flex flex-col items-center justify-center w-full h-24 border-2 border-slate-200 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition">
+                        <div class="flex flex-col items-center justify-center pt-5 pb-6">
+                            <svg class="w-6 h-6 mb-1 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                            <p class="text-xs text-slate-500"><span class="font-semibold">Add Images</span> for ${isGlobal ? 'these posts' : 'this post'}</p>
+                        </div>
+                        <input type="file" class="file-input hidden" accept="image/*" multiple data-key="${pKey}">
+                    </label>
+                    <div class="preview-container flex flex-wrap gap-2 mt-3" data-key="${pKey}"></div>
+                </div>
+            </div>
+        `;
 
-        let selectedFiles = [];
-        let previewRenderId = 0;
+        // Textarea Sync
+        const textarea = section.querySelector('.content-input');
+        textarea.addEventListener('input', (e) => state.platformData[pKey].content = e.target.value);
 
-        function syncFileInputFromList() {
-            const dt = new DataTransfer();
-            selectedFiles.forEach(function (f) {
-                dt.items.add(f);
-            });
-            fileInput.files = dt.files;
-        }
-
-        function updateFileLabel() {
-            const count = selectedFiles.length;
-            if (count === 0) {
-                labelText.innerHTML = `<span class="font-semibold">Click to upload</span> or drag and drop`;
-            } else if (count === 1) {
-                labelText.innerHTML = `<span class="font-semibold text-blue-600">Selected:</span> ${selectedFiles[0].name}`;
-            } else {
-                labelText.innerHTML = `<span class="font-semibold text-blue-600">Selected:</span> ${count} images`;
-            }
-        }
-
-        function removeImageAt(index) {
-            selectedFiles.splice(index, 1);
-            syncFileInputFromList();
-            updateFileLabel();
-            renderImagePreviews();
-        }
-
-        function renderImagePreviews() {
-            previewRenderId += 1;
-            const renderId = previewRenderId;
-            previewContainer.innerHTML = '';
-            selectedFiles.forEach(function (file, index) {
-                if (!file.type.startsWith('image/')) return;
-
+        // File Handling
+        const fileInput = section.querySelector('.file-input');
+        const previews = section.querySelector('.preview-container');
+        
+        const updatePreviews = () => {
+            previews.innerHTML = '';
+            state.platformData[pKey].files.forEach((file, idx) => {
                 const reader = new FileReader();
-                reader.onload = function (event) {
-                    if (renderId !== previewRenderId) return;
-                    const imgWrap = document.createElement('div');
-                    imgWrap.className = 'relative rounded-lg overflow-hidden border border-slate-200 shadow-sm group';
-                    imgWrap.style.width = '100px';
-                    imgWrap.style.height = '100px';
-
-                    const img = document.createElement('img');
-                    img.src = event.target.result;
-                    img.className = 'w-full h-full object-cover';
-                    img.alt = file.name;
-
-                    const removeBtn = document.createElement('button');
-                    removeBtn.type = 'button';
-                    removeBtn.title = 'Remove image';
-                    removeBtn.setAttribute('aria-label', 'Remove image');
-                    removeBtn.className =
-                        'absolute top-1 right-1 flex h-7 w-7 items-center justify-center rounded-full bg-slate-900/80 text-white shadow hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-400';
-                    removeBtn.innerHTML =
-                        '<svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>';
-                    removeBtn.addEventListener('click', function () {
-                        removeImageAt(index);
-                    });
-
-                    imgWrap.appendChild(img);
-                    imgWrap.appendChild(removeBtn);
-                    previewContainer.appendChild(imgWrap);
+                reader.onload = (e) => {
+                    const div = document.createElement('div');
+                    div.className = 'relative w-16 h-16 rounded-lg border shadow-sm group overflow-hidden';
+                    div.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover">
+                        <button type="button" class="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl shadow hidden group-hover:block" data-idx="${idx}">×</button>`;
+                    div.querySelector('button').onclick = () => {
+                        state.platformData[pKey].files.splice(idx, 1);
+                        updatePreviews();
+                    };
+                    previews.appendChild(div);
                 };
                 reader.readAsDataURL(file);
             });
-        }
+        };
 
-        fileInput.addEventListener('change', function (e) {
-            const newFiles = Array.from(e.target.files || []).filter(function (f) {
-                return f.type.startsWith('image/');
-            });
-            if (newFiles.length === 0) return;
-
-            selectedFiles = selectedFiles.concat(newFiles);
-            syncFileInputFromList();
-            updateFileLabel();
-            renderImagePreviews();
+        fileInput.addEventListener('change', (e) => {
+            const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+            state.platformData[pKey].files = [...state.platformData[pKey].files, ...files];
+            updatePreviews();
+            e.target.value = ''; // Reset for next selection
         });
 
-    // Handle Post Submit
-    postForm.addEventListener('submit', async function(e) {
-        e.preventDefault();
-        hideAlert();
-        
-        const content = document.getElementById('postContent').value.trim();
-        if (!content) return;
-        
-        // Get selected platforms
-        const selectedPlatforms = Array.from(document.querySelectorAll('input[name="platforms"]:checked')).map(cb => cb.value);
-        if (selectedPlatforms.length === 0) {
-            showAlert("Please select at least one platform (LinkedIn or X) to post to.", false);
-            return;
-        }
+        // Initialize previews if data exists
+        if (platformData.files.length) updatePreviews();
 
-        // Loading state
-        submitPostBtn.disabled = true;
+        return section;
+    }
+
+    // --- Core Logic ---
+    document.addEventListener('DOMContentLoaded', async () => {
+        const API_BASE_URL = await resolveApiBaseUrl();
         
-        const hasImage = selectedFiles.length > 0;
-        submitPostText.innerHTML = `<span class="loader"></span> ${hasImage ? 'Uploading & Publishing...' : 'Publishing...'}`;
-        
-        try {
-            const formData = new FormData();
-            formData.append('content', content);
-            formData.append('platforms', selectedPlatforms.join(','));
-            
-            // Append all accumulated files
-            selectedFiles.forEach(file => {
-                formData.append('images', file);
+        // Platform Selection
+        document.querySelectorAll('.platform-checkbox').forEach(cb => {
+            cb.addEventListener('change', () => {
+                state.selectedPlatforms = Array.from(document.querySelectorAll('.platform-checkbox:checked')).map(el => el.value);
+                renderInputs();
             });
-            
-            const response = await fetch(`${API_BASE_URL}/post`, {
-                method: 'POST',
-                body: formData
+        });
+
+        // Mode Switching
+        document.querySelectorAll('input[name="mode"]').forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                state.mode = e.target.value;
+                document.getElementById('modeSameLabel').className = state.mode === 'same' ? 'relative flex flex-col p-4 border rounded-xl cursor-pointer transition border-blue-500 bg-blue-50 shadow-md' : 'relative flex flex-col p-4 border rounded-xl cursor-pointer transition border-slate-200 bg-white';
+                document.getElementById('modeCustomLabel').className = state.mode === 'custom' ? 'relative flex flex-col p-4 border rounded-xl cursor-pointer transition border-blue-500 bg-blue-50 shadow-md' : 'relative flex flex-col p-4 border rounded-xl cursor-pointer transition border-slate-200 bg-white';
+                renderInputs();
             });
-            
-            const data = await response.json();
-            showAlert(data.message, data.success, data.links);
-            
-            if (data.success) {
-                // Reset form
-                postForm.reset();
-                labelText.innerHTML = `<span class="font-semibold">Click to upload</span> or drag and drop`;
-                previewContainer.innerHTML = ''; // Clear previews
-                selectedFiles = []; // Clear array
+        });
+
+        // Form Submit
+        const postForm = document.getElementById('postForm');
+        const submitBtn = document.getElementById('submitPostBtn');
+        const submitText = document.getElementById('submitPostText');
+
+        postForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideAlert();
+
+            if (state.selectedPlatforms.length === 0) {
+                showAlert("Please select at least one platform.", false);
+                return;
             }
-        } catch (error) {
-            showAlert(`Connection error: ${error.message}`, false);
-        } finally {
-            submitPostBtn.disabled = false;
-            submitPostText.textContent = 'Publish to Selected';
-        }
-    });
+
+            submitBtn.disabled = true;
+            submitText.innerHTML = '<span class="loader"></span> Publishing...';
+
+            try {
+                const formData = new FormData();
+                formData.append('mode', state.mode);
+                formData.append('platforms', state.selectedPlatforms.join(','));
+
+                if (state.mode === 'same') {
+                    formData.append('content', state.platformData.global.content);
+                    state.platformData.global.files.forEach(f => formData.append('images', f));
+                } else {
+                    state.selectedPlatforms.forEach(p => {
+                        formData.append(`${p}_content`, state.platformData[p].content);
+                        state.platformData[p].files.forEach(f => formData.append(`${p}_images`, f));
+                    });
+                }
+
+                const response = await fetch(`${API_BASE_URL}/post`, {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                showAlert(data.message, data.success, data.links);
+                
+                if (data.success) {
+                    // Reset platform data
+                    Object.values(state.platformData).forEach(d => { d.content = ''; d.files = []; });
+                    renderInputs();
+                }
+            } catch (err) {
+                showAlert(`Error: ${err.message}`, false);
+            } finally {
+                submitBtn.disabled = false;
+                submitText.textContent = 'Publish Post';
+            }
+        });
+
+        // Init
+        renderInputs();
     });
 </script>
 

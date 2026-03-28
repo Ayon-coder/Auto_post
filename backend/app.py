@@ -120,64 +120,78 @@ def create_post():
     content = request.form.get('content', '').strip()
     images = request.files.getlist('images')
     
-    # Handle retrieving platforms
+    mode = request.form.get('mode', 'same')
+    
+    # Platform list
     platforms_str = request.form.get('platforms', '')
     platforms = [p.strip() for p in platforms_str.split(',')] if platforms_str else []
     
-    if not content:
-        # Fallback to json (if no image is attached)
-        if request.is_json:
-            content = request.json.get('content', '').strip()
-            platforms = request.json.get('platforms', [])
-            
-    if not content:
-        return jsonify({"success": False, "message": "Post content is required."}), 400
-
     if not platforms:
         return jsonify({"success": False, "message": "At least one platform must be selected."}), 400
 
-    tasks = []
-    for image in images:
-        if image and image.filename:
-            tasks.append((image.filename, image.read()))
-
-    image_urls = []
-    if tasks:
-
+    def _upload_all_images(image_files):
+        """Helper to upload a list of file objects to ImgBB and return URLs."""
+        urls = []
+        if not image_files:
+            return urls
+            
         def _upload_one(idx_fn_blob):
             idx, filename, blob = idx_fn_blob
             ok, out = upload_image_to_imgbb(io.BytesIO(blob), filename)
             return idx, ok, out, filename
 
+        tasks = []
+        for img in image_files:
+            if img and img.filename:
+                tasks.append((img.filename, img.read()))
+        
+        if not tasks:
+            return urls
+
         max_workers = min(8, len(tasks))
         ordered = [None] * len(tasks)
         with ThreadPoolExecutor(max_workers=max_workers) as ex:
-            futs = [
-                ex.submit(_upload_one, (i, fn, blob))
-                for i, (fn, blob) in enumerate(tasks)
-            ]
+            futs = [ex.submit(_upload_one, (i, fn, blob)) for i, (fn, blob) in enumerate(tasks)]
             for fut in as_completed(futs):
                 idx, ok, out, filename = fut.result()
                 if not ok:
-                    return jsonify(
-                        {
-                            "success": False,
-                            "message": f"Image upload failed for {filename}: {out}",
-                        }
-                    ), 500
+                    raise Exception(f"Image upload failed for {filename}: {out}")
                 ordered[idx] = out
-        image_urls = ordered
+        return ordered
 
-    img_urls_arg = image_urls if image_urls else None
+    # Prepare data for each platform
+    platform_data = {}
+    try:
+        if mode == 'custom':
+            for p in platforms:
+                p_content = request.form.get(f'{p}_content', '').strip()
+                p_images = request.files.getlist(f'{p}_images')
+                if not p_content:
+                    return jsonify({"success": False, "message": f"Content for {p} is required in custom mode."}), 400
+                
+                urls = _upload_all_images(p_images)
+                platform_data[p] = {"content": p_content, "image_urls": urls if urls else None}
+        else:
+            # Same mode
+            if not content:
+                return jsonify({"success": False, "message": "Post content is required."}), 400
+            
+            urls = _upload_all_images(images)
+            for p in platforms:
+                platform_data[p] = {"content": content, "image_urls": urls if urls else None}
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Upload error: {str(e)}"}), 500
 
     results = []
     success_count = 0
 
     def _linkedin_job():
         try:
-            poster = LinkedIn(content, image_urls=img_urls_arg)
+            data = platform_data.get('linkedin')
+            if not data: return (0, "LinkedIn: Skipped", False, None)
+            poster = LinkedIn(data['content'], image_urls=data['image_urls'])
             if not poster.channel_id:
-                return (0, "LinkedIn: Failed (No valid channel)", False)
+                return (0, "LinkedIn: Failed (No valid channel)", False, None)
             link = poster.create_post()
             return (0, f"LinkedIn: Success ({poster.channel_name})", True, link)
         except Exception as e:
@@ -185,9 +199,11 @@ def create_post():
 
     def _x_job():
         try:
-            poster = XPoster(content, image_urls=img_urls_arg)
+            data = platform_data.get('x')
+            if not data: return (1, "X: Skipped", False, None)
+            poster = XPoster(data['content'], image_urls=data['image_urls'])
             if not poster.channel_id:
-                return (1, "X: Failed (No valid channel)", False)
+                return (1, "X: Failed (No valid channel)", False, None)
             link = poster.create_post()
             return (1, f"X: Success ({poster.channel_name})", True, link)
         except Exception as e:
