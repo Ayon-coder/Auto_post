@@ -110,6 +110,7 @@ class InstagramPoster:
                 "text": self.content,
                 "mode": "shareNow",
                 "schedulingType": "automatic",
+                "type": "post",
             }
         }
         
