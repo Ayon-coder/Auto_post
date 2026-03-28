@@ -46,7 +46,7 @@ Create a `.env` file in the root directory based on `.env.example`:
 
 ```ini
 LINKEDIN_BUFFER_ACCESS_TOKEN=your_token_here
-X_BUFFER_ACCESS_TOKEN=your_token_here
+X_INSTA_BUFFER_ACCESS_TOKEN=your_token_here
 GRAPHQL_URL=https://api.buffer.com/graphql
 IMGBB_API_KEY=your_imgbb_key_here
 ```

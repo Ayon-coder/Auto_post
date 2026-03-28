@@ -16,23 +16,23 @@ def _token_cache_key(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
-def _x_buffer_token():
-    # Priority for renamed token, fallback to old name for compatibility
+def _insta_buffer_token():
+    # Now shared with X, renamed to X_INSTA_BUFFER_ACCESS_TOKEN
     return (os.getenv("X_INSTA_BUFFER_ACCESS_TOKEN") or os.getenv("X_BUFFER_ACCESS_TOKEN") or "").strip()
 
 
 class TokenManager:
-    """Loads and validates the X (Twitter) Buffer API token from environment only."""
+    """Loads and validates the Instagram Buffer API token from environment only."""
 
     def __init__(self):
         self.access_token = None
 
     def get_valid_token(self):
-        self.access_token = _x_buffer_token()
+        self.access_token = _insta_buffer_token()
         if not self.access_token:
             raise ValueError(
-                "X/Instagram Buffer token missing. Set X_INSTA_BUFFER_ACCESS_TOKEN in your .env "
-                "(shared between X and Instagram - Buffer API key tied to your channels)."
+                "Instagram Buffer token missing. Set X_INSTA_BUFFER_ACCESS_TOKEN in your .env "
+                "(shared with X - Buffer API key tied to your Instagram channel)."
             )
 
         key = _token_cache_key(self.access_token)
@@ -46,7 +46,7 @@ class TokenManager:
 
         _valid_until.pop(key, None)
         raise ValueError(
-            "X Buffer token is invalid or expired. Regenerate it at "
+            "Instagram Buffer token is invalid or expired. Regenerate it at "
             "https://buffer.com/developers/api and update X_INSTA_BUFFER_ACCESS_TOKEN in your .env."
         )
 

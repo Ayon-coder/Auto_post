@@ -16,15 +16,15 @@ _channel_cache: dict[str, tuple[str, str]] = {}
 
 
 def _channel_cache_key(token: str) -> str:
-    return hashlib.sha256(("x" + token).encode()).hexdigest()
+    return hashlib.sha256(("insta" + token).encode()).hexdigest()
 
 
-class XPoster:
+class InstagramPoster:
     def __init__(self, content, image_urls=None):
         self.content = content
         self.image_urls = image_urls
         
-        # Buffer token from .env — X/Instagram-specific (X_INSTA_BUFFER_ACCESS_TOKEN)
+        # Buffer token from .env — Renamed to X_INSTA_BUFFER_ACCESS_TOKEN
         token_manager = TokenManager()
         self.access_token = token_manager.get_valid_token()
         
@@ -57,7 +57,7 @@ class XPoster:
         if key in _channel_cache:
             self.channel_id, self.channel_name = _channel_cache[key]
             if _VERBOSE:
-                print(f"[OK] X: channel {self.channel_name} [{self.channel_id}] (cached)")
+                print(f"[OK] Instagram: channel {self.channel_name} [{self.channel_id}] (cached)")
             return
 
         query = """
@@ -69,8 +69,8 @@ class XPoster:
         for org in orgs:
             channels = org.get("channels", [])
             for channel in channels:
-                # Buffer identifies X as 'twitter'
-                if channel.get("service") in ["twitter", "x"]:
+                # Buffer identifies Instagram as 'instagram'
+                if channel.get("service") == "instagram":
                     self.channel_id = channel["id"]
                     self.channel_name = f"{channel['name']} ({channel['service']})"
                     break
@@ -78,10 +78,10 @@ class XPoster:
                 break
         
         if not self.channel_id:
-            raise Exception("No Twitter/X channel found for the provided X token.")
+            raise Exception("No Instagram channel found for the provided token.")
         _channel_cache[key] = (self.channel_id, self.channel_name)
         if _VERBOSE:
-            print(f"[OK] X: channel {self.channel_name} [{self.channel_id}]")
+            print(f"[OK] Instagram: channel {self.channel_name} [{self.channel_id}]")
 
     def create_post(self):
         mutation = """
@@ -123,7 +123,7 @@ class XPoster:
         status_post, data_post = self.graphql_query(mutation, variables)
 
         if _VERBOSE:
-            print(f"X createPost HTTP {status_post}")
+            print(f"Instagram createPost HTTP {status_post}")
             print(json.dumps(data_post, indent=2, ensure_ascii=True))
 
         if "errors" in data_post:
@@ -140,4 +140,4 @@ class XPoster:
 
 if __name__ == "__main__":
     post_content = f"Hello! This is a test post from my custom Buffer API script! Time: {datetime.datetime.now()}"
-    x_poster = XPoster(post_content)
+    insta_poster = InstagramPoster(post_content)

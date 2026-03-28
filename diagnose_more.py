@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-token = os.getenv("LINKEDIN_BUFFER_ACCESS_TOKEN") or os.getenv("X_BUFFER_ACCESS_TOKEN")
+token = os.getenv("LINKEDIN_BUFFER_ACCESS_TOKEN") or os.getenv("X_INSTA_BUFFER_ACCESS_TOKEN") or os.getenv("X_BUFFER_ACCESS_TOKEN")
 headers = {
     "Authorization": f"Bearer {token}",
     "Content-Type": "application/json",

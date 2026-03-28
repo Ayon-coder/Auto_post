@@ -6,9 +6,9 @@ from dotenv import load_dotenv
 # Load .env to get the token
 load_dotenv()
 
-token = os.getenv("LINKEDIN_BUFFER_ACCESS_TOKEN") or os.getenv("X_BUFFER_ACCESS_TOKEN")
+token = os.getenv("LINKEDIN_BUFFER_ACCESS_TOKEN") or os.getenv("X_INSTA_BUFFER_ACCESS_TOKEN") or os.getenv("X_BUFFER_ACCESS_TOKEN")
 if not token:
-    print("Error: No access token found in .env (tried LINKEDIN_BUFFER_ACCESS_TOKEN and X_BUFFER_ACCESS_TOKEN)")
+    print("Error: No access token found in .env (tried LINKEDIN_BUFFER_ACCESS_TOKEN and X_INSTA_BUFFER_ACCESS_TOKEN)")
     exit(1)
 
 headers = {
