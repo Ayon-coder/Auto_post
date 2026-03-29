@@ -133,20 +133,28 @@ class XPoster:
             print(json.dumps(data_post, indent=2, ensure_ascii=True))
 
         if "errors" in data_post:
-            error_msgs = [e.get("message", "Unknown error") for e in data_post["errors"]]
-            raise Exception("GraphQL Error: " + ", ".join(error_msgs))
+            msgs = [e.get("message", "Unknown GraphQL error") for e in data_post["errors"]]
+            # Include specific reason if present
+            for e in data_post["errors"]:
+                if "extensions" in e and "error" in e["extensions"]:
+                    msgs.append(f"Reason: {e['extensions']['error']}")
+            raise Exception(" | ".join(msgs))
 
         post_result = data_post.get("data", {}).get("createPost", {})
-        if post_result.get("__typename") != "PostActionSuccess":
-            error_msg = post_result.get("message", "Unknown error creating post")
-            raise Exception(f"Buffer API Error: {error_msg}")
-
-        post_data = post_result.get("post", {})
-        return {
-            "id": post_data.get("id"),
-            "link": post_data.get("externalLink"),
-            "handle": self.channel_name # Display name for X
-        }
+        typename = post_result.get("__typename")
+        
+        if typename == "PostActionSuccess":
+            post_data = post_result.get("post", {})
+            return {
+                "id": post_data.get("id"),
+                "link": post_data.get("externalLink"),
+                "handle": self.channel_name
+            }
+        else:
+            # Handle various error typenames (InvalidInputError, UnexpectedError, etc.)
+            error_msg = post_result.get("message") or "Unknown Buffer API error"
+            error_code = post_result.get("code") or "N/A"
+            raise Exception(f"Buffer API Error ({typename}): {error_msg} (Code: {error_code})")
 
     def get_post_status(self, post_id: str):
         query = """
