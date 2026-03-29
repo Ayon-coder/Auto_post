@@ -73,7 +73,7 @@ class XPoster:
                 # Buffer identifies X as 'twitter'
                 if channel.get("service") in ["twitter", "x"]:
                     self.channel_id = channel["id"]
-                    self.channel_name = f"{channel['name']} ({channel['service']})"
+                    self.channel_name = channel["name"]
                     break
             if self.channel_id:
                 break
@@ -144,7 +144,8 @@ class XPoster:
         post_data = post_result.get("post", {})
         return {
             "id": post_data.get("id"),
-            "link": post_data.get("externalLink")
+            "link": post_data.get("externalLink"),
+            "handle": self.channel_name # Display name for X
         }
 
     def get_post_status(self, post_id: str):

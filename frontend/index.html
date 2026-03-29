@@ -211,6 +211,14 @@
                         const feedUrl = `https://www.linkedin.com/feed/`;
                         group.innerHTML = `<span class="text-[10px] text-slate-400 italic mr-2">Link slow:</span>`;
                         renderLinkGroup(group, platform, feedUrl);
+                    } else if (platform === 'x' && handle) {
+                        const profileUrl = `https://x.com/${handle.replace('@', '')}`;
+                        group.innerHTML = `<span class="text-[10px] text-slate-400 italic mr-2">Link slow:</span>`;
+                        renderLinkGroup(group, platform, profileUrl);
+                    } else if (platform === 'facebook') {
+                        const fbUrl = `https://www.facebook.com/`;
+                        group.innerHTML = `<span class="text-[10px] text-slate-400 italic mr-2">Link slow:</span>`;
+                        renderLinkGroup(group, platform, fbUrl);
                     } else {
                         group.innerHTML = `<span class="text-[10px] text-slate-400 italic">Link slow to generate. Check ${platform} manually.</span>`;
                     }

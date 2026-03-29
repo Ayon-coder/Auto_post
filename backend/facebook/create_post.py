@@ -79,7 +79,7 @@ class FacebookPoster:
                 # Buffer can identify Facebook as 'facebook' or potentially 'facebook_page'
                 if "facebook" in channel.get("service", "").lower():
                     self.channel_id = channel["id"]
-                    self.channel_name = f"{channel['name']} ({channel['service']})"
+                    self.channel_name = channel["name"]
                     break
             if self.channel_id:
                 break
@@ -155,7 +155,8 @@ class FacebookPoster:
         post_data = post_result.get("post", {})
         return {
             "id": post_data.get("id"),
-            "link": post_data.get("externalLink")
+            "link": post_data.get("externalLink"),
+            "handle": self.channel_name # Display name for Facebook
         }
 
     def get_post_status(self, post_id: str):

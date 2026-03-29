@@ -301,6 +301,10 @@ def create_post():
                             metadata["instagram"] = {"handle": res["handle"]}
                         if platform_name == 'linkedin' and res.get("handle"):
                             metadata["linkedin"] = {"handle": res["handle"]}
+                        if platform_name == 'x' and res.get("handle"):
+                            metadata["x"] = {"handle": res["handle"]}
+                        if platform_name == 'facebook' and res.get("handle"):
+                            metadata["facebook"] = {"handle": res["handle"]}
 
         if success_count > 0:
             return jsonify({
