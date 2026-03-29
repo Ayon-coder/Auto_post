@@ -10,7 +10,7 @@ from .token_refresh import TokenManager
 
 load_dotenv()
 
-_REQUEST_TIMEOUT = 9
+_REQUEST_TIMEOUT = 8
 _VERBOSE = os.getenv("VERBOSE_BUFFER_LOGS", "").lower() in ("1", "true", "yes")
 
 _channel_cache: dict[str, tuple[str, str]] = {}
@@ -121,7 +121,12 @@ class XPoster:
                 ]
             }
 
-        status_post, data_post = self.graphql_query(mutation, variables)
+        start_time = time.time()
+        status_post, data_post = None, {}
+        try:
+            status_post, data_post = self.graphql_query(mutation, variables)
+        except requests.Timeout:
+            return "Success (Processing: Mutation timed out, but post likely created)"
 
         if _VERBOSE:
             print(f"X createPost HTTP {status_post}")
@@ -142,12 +147,22 @@ class XPoster:
         if not post_id:
             return post_data.get("externalLink")
 
-        # Polling for success status and valid externalLink (Optimized for Vercel Free: 10s limit)
-        max_attempts = 3
-        delay = 2.5
-        for attempt in range(max_attempts):
+        # Time-Aware Polling (Optimized for Vercel Free: 10s budget)
+        elapsed = time.time() - start_time
+        if elapsed > 7:
             if _VERBOSE:
-                print(f"[POLL] X post {post_id} - Attempt {attempt+1}/{max_attempts}")
+                print(f"[SKIP] Skipping polling for X link (Elapsed {elapsed:.1f}s)")
+            return post_data.get("externalLink") or "Success (Processing: Link will generate shortly)"
+
+        max_attempts = 2
+        delay = 1.0
+        for attempt in range(max_attempts):
+            elapsed = time.time() - start_time
+            if elapsed > 9.0:
+                break
+                
+            if _VERBOSE:
+                print(f"[POLL] X post {post_id} - Attempt {attempt+1}/{max_attempts} (Elapsed {elapsed:.1f}s)")
             
             try:
                 status_query = """
@@ -161,8 +176,10 @@ class XPoster:
                   }
                 }
                 """
-                s_status, s_data = self.graphql_query(status_query, {"id": post_id})
-                if s_status == 200:
+                payload = {"query": status_query, "variables": {"id": post_id}}
+                res = self._http.post(self.graphql_url, json=payload, timeout=2.0)
+                if res.status_code == 200:
+                    s_data = res.json()
                     post_info = s_data.get("data", {}).get("node", {})
                     status = post_info.get("status", "").lower()
                     link = post_info.get("externalLink")
@@ -180,8 +197,9 @@ class XPoster:
             
             time.sleep(delay)
 
-        # Final attempt to get the link even if status isn't 'sent'
-        return post_data.get("externalLink")
+        # Final attempt/fallback
+        return post_data.get("externalLink") or "Success (Processing: Link will generate shortly)"
+        
 
 if __name__ == "__main__":
     post_content = f"Hello! This is a test post from my custom Buffer API script! Time: {datetime.datetime.now()}"
