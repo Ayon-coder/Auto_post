@@ -111,6 +111,10 @@ class InstagramPoster:
         }
         """
 
+        # Determine if it's a single post or carousel
+        num_images = len(self.image_urls) if self.image_urls else 0
+        is_carousel = num_images > 1
+        
         variables = {
             "input": {
                 "channelId": self.channel_id,
@@ -119,8 +123,9 @@ class InstagramPoster:
                 "schedulingType": "automatic",
                 "metadata": {
                     "instagram": {
-                        "type": "post",
-                        "shouldShareToFeed": True
+                        "type": "carousel" if is_carousel else "post",
+                        "shouldShareToFeed": True,
+                        "directPosting": True # Explicitly request direct posting
                     }
                 }
             }

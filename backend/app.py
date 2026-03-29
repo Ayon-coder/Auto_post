@@ -1,6 +1,7 @@
-import io
 import json
 import os
+import io
+from PIL import Image
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
@@ -180,6 +181,23 @@ def create_post():
             
         def _upload_one(idx_fn_blob):
             idx, filename, blob = idx_fn_blob
+            
+            # Diagnostic: Check image with Pillow
+            diag_info = ""
+            try:
+                with Image.open(io.BytesIO(blob)) as img:
+                    w, h = img.size
+                    fmt = img.format
+                    diag_info = f"[{fmt} {w}x{h}]"
+                    
+                    # Validation: Instagram 4:5 to 1.91:1 check
+                    ratio = w / h
+                    if ratio < 0.8 or ratio > 1.91:
+                        diag_info += " (Warning: Non-standard Instagram ratio)"
+            except:
+                diag_info = "[Invalid Image Data]"
+
+            print(f"DEBUG: Uploading {filename} {diag_info} to ImgBB...")
             ok, out = upload_image_to_imgbb(io.BytesIO(blob), filename)
             return idx, ok, out, filename
 
