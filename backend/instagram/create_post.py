@@ -176,7 +176,10 @@ class InstagramPoster:
         if status_code != 200:
             raise Exception(f"Failed to fetch post status: {status_code}")
             
-        post_info = data.get("data", {}).get("node", {})
+        post_info = data.get("data", {}).get("node")
+        if not post_info:
+            return {"status": "pending", "link": None}
+            
         return {
             "status": post_info.get("status", "").lower(),
             "link": post_info.get("externalLink")

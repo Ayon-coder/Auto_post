@@ -134,10 +134,22 @@ def get_post_status():
         else:
             return jsonify({"success": False, "message": f"Unknown platform: {platform}"}), 400
             
+        if not poster:
+            return jsonify({"success": False, "message": "Failed to initialize platform handler"}), 500
+            
         result = poster.get_post_status(post_id)
-        return jsonify({"success": True, "status": result['status'], "link": result['link']})
+        if not result:
+            return jsonify({"success": True, "status": "pending", "message": "Post node not found yet"}), 200
+            
+        return jsonify({
+            "success": True, 
+            "status": result.get('status', 'unknown'), 
+            "link": result.get('link')
+        })
     except Exception as e:
-        return jsonify({"success": False, "message": str(e)}), 500
+        print(f"DEBUG: /api/post/status error for {platform}/{post_id}: {str(e)}")
+        # If the error is just a transitory API issue, return a 200 with 'error' status
+        return jsonify({"success": False, "message": str(e), "status": "error"}), 200
 
 
 @app.route("/api/config", methods=["GET"])
