@@ -124,8 +124,7 @@ class InstagramPoster:
                 "metadata": {
                     "instagram": {
                         "type": "carousel" if is_carousel else "post",
-                        "shouldShareToFeed": True,
-                        "directPosting": True # Explicitly request direct posting
+                        "shouldShareToFeed": True
                     }
                 }
             }
