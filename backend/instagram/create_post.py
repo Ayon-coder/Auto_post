@@ -73,7 +73,7 @@ class InstagramPoster:
                 # Buffer identifies Instagram as 'instagram'
                 if channel.get("service") == "instagram":
                     self.channel_id = channel["id"]
-                    self.channel_name = f"{channel['name']} ({channel['service']})"
+                    self.channel_name = channel["name"]
                     break
             if self.channel_id:
                 break
@@ -156,7 +156,8 @@ class InstagramPoster:
         post_data = post_result.get("post", {})
         return {
             "id": post_data.get("id"),
-            "link": post_data.get("externalLink")
+            "link": post_data.get("externalLink"),
+            "handle": self.channel_name # Captured during fetch_channel_id
         }
 
     def get_post_status(self, post_id: str):

@@ -277,6 +277,7 @@ def create_post():
 
         links = {}
         post_ids = {}
+        metadata = {}
         if jobs:
             max_workers = min(len(jobs), 4)
             with ThreadPoolExecutor(max_workers=max_workers) as ex:
@@ -296,13 +297,16 @@ def create_post():
                             links[platform_name] = res["link"]
                         if res.get("id"):
                             post_ids[platform_name] = res["id"]
+                        if platform_name == 'instagram' and res.get("handle"):
+                            metadata["instagram"] = {"handle": res["handle"]}
 
         if success_count > 0:
             return jsonify({
                 "success": True, 
                 "message": " | ".join(results), 
                 "links": links,
-                "post_ids": post_ids
+                "post_ids": post_ids,
+                "metadata": metadata
             })
         else:
             return jsonify({"success": False, "message": "Failed to post: " + " | ".join(results)}), 400

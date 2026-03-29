@@ -129,7 +129,7 @@
     }
 
     // --- UI Helpers ---
-    function showAlert(message, isSuccess, links = {}, postIds = {}) {
+    function showAlert(message, isSuccess, links = {}, postIds = {}, metadata = {}) {
         const alertBox = document.getElementById('alertBox');
         const alertIcon = document.getElementById('alertIcon');
         const alertMessage = document.getElementById('alertMessage');
@@ -160,7 +160,7 @@
                             Verifying ${platform}...
                         </div>
                     `;
-                    startPolling(platform, postId);
+                    startPolling(platform, postId, metadata[platform]?.handle);
                 }
                 container.appendChild(group);
             });
@@ -192,17 +192,25 @@
         container.appendChild(view); container.appendChild(copy);
     }
 
-    async function startPolling(platform, postId) {
+    async function startPolling(platform, postId, handle = null) {
         const API_BASE_URL = await resolveApiBaseUrl();
-        const maxAttempts = 20;
+        const maxAttempts = 30; // 90 seconds total
         let attempts = 0;
         
         const interval = setInterval(async () => {
             attempts++;
+            const group = document.getElementById(`link-group-${platform}`);
             if (attempts > maxAttempts) {
                 clearInterval(interval);
-                const group = document.getElementById(`link-group-${platform}`);
-                if (group) group.innerHTML = `<span class="text-[10px] text-slate-400 italic">Link slow to generate. Check ${platform} manually.</span>`;
+                if (group) {
+                    if (platform === 'instagram' && handle) {
+                        const profileUrl = `https://www.instagram.com/${handle.replace('@', '')}/`;
+                        group.innerHTML = `<span class="text-[10px] text-slate-400 italic mr-2">Link slow:</span>`;
+                        renderLinkGroup(group, platform, profileUrl);
+                    } else {
+                        group.innerHTML = `<span class="text-[10px] text-slate-400 italic">Link slow to generate. Check ${platform} manually.</span>`;
+                    }
+                }
                 return;
             }
             
@@ -404,7 +412,7 @@
                     throw new Error(`Server returned ${response.status}: ${text.substring(0, 100)}`);
                 }
                 
-                showAlert(data.message, data.success, data.links, data.post_ids);
+                showAlert(data.message, data.success, data.links, data.post_ids, data.metadata || {});
                 
                 if (data.success) {
                     // Reset platform data
