@@ -73,7 +73,7 @@ class LinkedIn:
             for channel in channels:
                 if channel.get("service") == "linkedin":
                     self.channel_id = channel["id"]
-                    self.channel_name = f"{channel['name']} ({channel['service']})"
+                    self.channel_name = channel["name"]
                     break
             if self.channel_id:
                 break
@@ -144,7 +144,8 @@ class LinkedIn:
         post_data = post_result.get("post", {})
         return {
             "id": post_data.get("id"),
-            "link": post_data.get("externalLink")
+            "link": post_data.get("externalLink"),
+            "handle": self.channel_name # Display name for LinkedIn
         }
 
     def get_post_status(self, post_id: str):
