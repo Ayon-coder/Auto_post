@@ -152,9 +152,17 @@ class LinkedIn:
                         timeout=5
                     )
                     p = rest_res.json()
+                    # 1. Prefer the direct service_link if available
                     service_link = p.get('service_link')
                     if service_link:
                         link = service_link
+                        break
+                    
+                    # 2. PROACTIVE FIX: If service_link is missing but service_update_id exists, 
+                    # we can construct the link ourselves! (Works for LinkedIn Buffer posts)
+                    uid = p.get('service_update_id')
+                    if uid and "urn:li:" in uid:
+                        link = f"https://www.linkedin.com/feed/update/{uid}"
                         break
                 except Exception:
                     pass
