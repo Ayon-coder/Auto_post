@@ -76,6 +76,9 @@ def post_to_linkedin(text, as_company=False):
         print("✅ Post published successfully on LinkedIn!")
         post_id = response.headers.get("x-restli-id", "N/A")
         print(f"📄 Post ID: {post_id}")
+        if post_id != "N/A":
+            link = f"https://www.linkedin.com/feed/update/{post_id}"
+            print(f"🔗 Post Link: {link}")
     else:
         print(f"❌ Failed to post. Status: {response.status_code}")
         print(f"Response: {response.json()}")

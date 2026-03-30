@@ -168,11 +168,9 @@ class InstagramPoster:
         link = post_data.get("externalLink")
         
         if not link:
-            # If link is null, it usually means Buffer moved it to 'Notifications' or 'Drafts'.
-            return (
-                "Created (Check Buffer app for mobile notification - "
-                "direct posting may be restricted for this account type)"
-            )
+            # If link is null, return a valid URL to the Buffer queue so it works in the UI
+            return f"https://publish.buffer.com/profile/{self.channel_id}/tab/queue"
+            
         return link
 
 if __name__ == "__main__":
