@@ -150,12 +150,13 @@ class FacebookPoster:
         link = post_data.get("externalLink")
         post_id = post_data.get("id")
         
-        # Poll for link if it's missing (usually generated a few seconds later for media posts)
+        # Poll for link if it's missing (generated a few seconds later for media posts)
         if not link and post_id:
             import time
-            for _ in range(2):
+            # Maximize Vercel wait (~7.5s total) while using 1.5s intervals for efficiency
+            for _ in range(5):
                 try:
-                    time.sleep(2)
+                    time.sleep(1.5)
                     rest_res = requests.get(
                         f"https://api.bufferapp.com/1/updates/{post_id}.json", 
                         headers={"Authorization": f"Bearer {self.access_token}"},

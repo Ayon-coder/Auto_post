@@ -139,12 +139,13 @@ class LinkedIn:
         link = post_data.get("externalLink")
         post_id = post_data.get("id")
         
-        # Poll for link if it's missing (usually generated a few seconds later for media posts)
+        # Poll for link if it's missing (generated a few seconds later for media posts)
         if not link and post_id:
             import time
-            for _ in range(2):
+            # Maximize Vercel wait (~7.5s total) while using 1.5s intervals for efficiency
+            for _ in range(5):
                 try:
-                    time.sleep(2)
+                    time.sleep(1.5)
                     rest_res = requests.get(
                         f"https://api.bufferapp.com/1/updates/{post_id}.json", 
                         headers={"Authorization": f"Bearer {self.access_token}"},
@@ -153,10 +154,8 @@ class LinkedIn:
                     p = rest_res.json()
                     
                     # 1. First try specifically extracting the numeric ID from service_update_id
-                    # This is the most reliable way to avoid 404s on LinkedIn.
                     uid = p.get('service_update_id') or ""
                     if uid:
-                        # Extract only digits if it's a URN like urn:li:share:123456
                         import re
                         digits = re.findall(r'\d+', uid)
                         if digits:
@@ -172,8 +171,11 @@ class LinkedIn:
                     pass
 
         if not link:
+            # Safer fallback for Company Pages (Fixfield)
             username = self.channel_name.split(' ')[0] if self.channel_name else ""
-            return f"https://www.linkedin.com/in/{username}"
+            if "linkedin" in username.lower(): # Guard against weird names
+                return "https://www.linkedin.com/feed/"
+            return f"https://www.linkedin.com/company/{username}"
         return link
 
 if __name__ == "__main__":
