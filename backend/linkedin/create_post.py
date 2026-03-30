@@ -152,17 +152,6 @@ class LinkedIn:
                         timeout=5
                     )
                     p = rest_res.json()
-                    
-                    # 1. First try specifically extracting the numeric ID from service_update_id
-                    uid = p.get('service_update_id') or ""
-                    if uid:
-                        import re
-                        digits = re.findall(r'\d+', uid)
-                        if digits:
-                            link = f"https://www.linkedin.com/feed/update/{digits[-1]}"
-                            break
-                    
-                    # 2. Fallback to generic service_link if extraction failed
                     service_link = p.get('service_link')
                     if service_link:
                         link = service_link
