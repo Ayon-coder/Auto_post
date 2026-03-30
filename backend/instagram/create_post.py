@@ -90,8 +90,16 @@ class InstagramPoster:
                 "Please upload an image and try again."
             )
 
+        # Buffer's GraphQL character limit for Instagram is 2200.
+        if len(self.content) > 2200:
+            raise ValueError(
+                f"Instagram captions are capped at 2200 characters. "
+                f"Your post is {len(self.content)} characters. "
+                "Please shorten your content."
+            )
+
         mutation = """
-        mutation CreateTestPost($input: CreatePostInput!) {
+        mutation CreatePost($input: CreatePostInput!) {
             createPost(input: $input) {
                 __typename
                 ... on PostActionSuccess {
@@ -116,6 +124,11 @@ class InstagramPoster:
                 "text": self.content,
                 "mode": "shareNow",
                 "schedulingType": "automatic",
+                "assets": {
+                    "images": [
+                        {"url": url} for url in self.image_urls
+                    ]
+                },
                 "metadata": {
                     "instagram": {
                         "type": "post",
@@ -125,13 +138,6 @@ class InstagramPoster:
             }
         }
         
-        if self.image_urls:
-            variables["input"]["assets"] = {
-                "images": [
-                    {"url": url} for url in self.image_urls
-                ]
-            }
-
         status_post, data_post = self.graphql_query(mutation, variables)
 
         if _VERBOSE:
@@ -140,11 +146,22 @@ class InstagramPoster:
 
         if "errors" in data_post:
             error_msgs = [e.get("message", "Unknown error") for e in data_post["errors"]]
-            raise Exception("GraphQL Error: " + ", ".join(error_msgs))
+            # Deeply analyze the error message to provide helpful hints.
+            full_msg = ", ".join(error_msgs)
+            if "media" in full_msg.lower() or "aspect ratio" in full_msg.lower():
+                raise Exception(f"Instagram rejected the media format. Check aspect ratio (must be 4:5 to 1.91:1) and try again. Full Error: {full_msg}")
+            raise Exception("GraphQL Error: " + full_msg)
 
         post_result = data_post.get("data", {}).get("createPost", {})
         if post_result.get("__typename") != "PostActionSuccess":
             error_msg = post_result.get("message", "Unknown error creating post")
+            # If the error message from Buffer mentions 'delete media', it's usually an aspect ratio issue.
+            if "delete media" in error_msg.lower():
+                raise Exception(
+                    "Instagram rejected the media. This is usually due to an incompatible "
+                    "aspect ratio (e.g. 9:16 vertical instead of 4:5). "
+                    "Please crop the photo and try again."
+                )
             raise Exception(f"Buffer API Error: {error_msg}")
 
         post_data = post_result.get("post", {})
@@ -159,5 +176,5 @@ class InstagramPoster:
         return link
 
 if __name__ == "__main__":
-    post_content = f"Hello! This is a test post from my custom Buffer API script! Time: {datetime.datetime.now()}"
+    post_content = f"Hello! This is a test post from my custom Buffer API script! Time: {datetime.now()}"
     insta_poster = InstagramPoster(post_content)
