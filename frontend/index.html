@@ -199,6 +199,8 @@
             const container = document.createElement('div');
             container.className = 'mt-3 space-y-3 w-full';
             
+            const resolvedLinks = {};
+
             Object.entries(platforms).forEach(([name, res]) => {
                 const pKey = name.toLowerCase();
                 const group = document.createElement('div');
@@ -214,15 +216,65 @@
                 statusSpan.className = 'flex-1 text-sm text-emerald-700 font-medium flex items-center justify-between overflow-hidden';
                 
                 if (res.link) {
+                    resolvedLinks[pKey] = res.link;
                     renderLinkGroup(statusSpan, res.link);
                 } else {
                     statusSpan.innerHTML = `<span class="flex items-center text-slate-500 italic"><span class="loader-sm mr-2"></span> Processing...</span>`;
-                    pollForLink(pKey, res.post_id, statusSpan, res.fallback);
+                    pollForLink(pKey, res.post_id, statusSpan, res.fallback, resolvedLinks);
                 }
                 
                 group.appendChild(statusSpan);
                 container.appendChild(group);
             });
+
+            const copyBtnContainer = document.createElement('div');
+            copyBtnContainer.className = 'mt-4 pt-3 border-t border-emerald-100/50';
+            
+            const copyAllBtn = document.createElement('button');
+            copyAllBtn.type = 'button';
+            copyAllBtn.className = 'w-full py-2 bg-emerald-100 hover:bg-emerald-200 text-emerald-800 font-bold rounded-lg transition-all text-sm flex items-center justify-center focus:outline-none';
+            const copyIcon = `<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>`;
+            copyAllBtn.innerHTML = `${copyIcon} Copy All Formatted Links`;
+            
+            const formatUrl = (platform, url) => {
+                if (!url) return '';
+                if (platform === 'x' || platform === 'twitter') {
+                    return url.replace('twitter.com', 'x.com');
+                }
+                return url;
+            };
+
+            copyAllBtn.onclick = async () => {
+                const parts = [];
+                if (resolvedLinks['instagram']) parts.push(`Instagram : ${formatUrl('instagram', resolvedLinks['instagram'])}`);
+                if (resolvedLinks['facebook']) parts.push(`Facebook : ${formatUrl('facebook', resolvedLinks['facebook'])}`);
+                if (resolvedLinks['linkedin']) parts.push(`LinkedIn : ${formatUrl('linkedin', resolvedLinks['linkedin'])}`);
+                if (resolvedLinks['x'] || resolvedLinks['twitter']) parts.push(`Twitter : ${formatUrl('x', resolvedLinks['x'] || resolvedLinks['twitter'])}`);
+                
+                const text = parts.join('\n');
+                if (!text) {
+                    alert("No links ready yet! Please wait for posts to finish processing.");
+                    return;
+                }
+                
+                try {
+                    await navigator.clipboard.writeText(text);
+                    copyAllBtn.innerHTML = `<svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Copied!`;
+                    copyAllBtn.classList.replace('bg-emerald-100', 'bg-emerald-200');
+                    copyAllBtn.classList.replace('text-emerald-800', 'text-emerald-900');
+                    setTimeout(() => {
+                        copyAllBtn.innerHTML = `${copyIcon} Copy All Formatted Links`;
+                        copyAllBtn.classList.replace('bg-emerald-200', 'bg-emerald-100');
+                        copyAllBtn.classList.replace('text-emerald-900', 'text-emerald-800');
+                    }, 2000);
+                } catch (e) {
+                    console.error("Copy failed", e);
+                }
+            };
+            
+            copyBtnContainer.appendChild(copyAllBtn);
+            container.appendChild(copyBtnContainer);
+
             alertMessage.appendChild(container);
         }
         alertBox.className = `p-4 rounded-xl border shadow-sm flex items-center space-x-3 transition-all mb-8 ${isSuccess ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'}`;
@@ -259,7 +311,7 @@
         };
     }
 
-    async function pollForLink(platform, postId, statusSpan, fallback) {
+    async function pollForLink(platform, postId, statusSpan, fallback, resolvedLinks = null) {
         const API_BASE_URL = await resolveApiBaseUrl();
         let attempts = 0;
         const maxAttempts = 30; 
@@ -274,6 +326,7 @@
                 const data = await res.json();
                 
                 if (data.success && data.link) {
+                    if (resolvedLinks) resolvedLinks[platform] = data.link;
                     renderLinkGroup(statusSpan, data.link);
                     return;
                 }
