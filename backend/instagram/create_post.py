@@ -2,6 +2,7 @@ import hashlib
 import os
 import datetime
 import json
+import time
 
 import requests
 from requests.exceptions import Timeout, ConnectionError, RequestException
@@ -353,14 +354,72 @@ class InstagramPoster:
         post_id = post_data.get("id")
 
         if not link:
-            username = self.channel_name.split(" ")[0] if self.channel_name else ""
-            return {
-                "link": None,
-                "post_id": post_id,
-                "fallback": f"https://www.instagram.com/{username}",
-            }
+            link = self._wait_for_link(post_id)
 
-        return {"link": link, "post_id": post_id, "fallback": None}
+        if link:
+            return {"link": link, "post_id": post_id, "fallback": None}
+
+        # Link never arrived — ask the user to check manually
+        username = self.channel_name.split(" ")[0] if self.channel_name else ""
+        profile_url = f"https://www.instagram.com/{username}"
+        return {
+            "link": None,
+            "post_id": post_id,
+            "fallback": profile_url,
+            "user_message": (
+                "Your post was submitted successfully, but Instagram is taking longer "
+                "than usual to confirm the link.\n"
+                f"Please check your Instagram profile to verify it went live: {profile_url}"
+            ),
+        }
+
+    # ------------------------------------------------------------------
+    # Poll for the post link (5–7 s window, ~1 s intervals)
+    # ------------------------------------------------------------------
+
+    def _wait_for_link(self, post_id: str, timeout: int = 7, interval: float = 1.0) -> str | None:
+        """
+        Poll Buffer for the externalLink of a just-created post.
+        Waits up to `timeout` seconds, checking every `interval` seconds.
+        Returns the link string if found, or None if the window expires.
+        """
+        if not post_id:
+            return None
+
+        query = """
+        query GetPost($id: String!) {
+            post(id: $id) {
+                id
+                externalLink
+            }
+        }
+        """
+
+        deadline = time.monotonic() + timeout
+        attempt = 0
+
+        while time.monotonic() < deadline:
+            attempt += 1
+            try:
+                _, data = self.graphql_query(query, {"id": post_id})
+            except InstagramPostError:
+                # Don't surface polling errors — just keep waiting
+                time.sleep(interval)
+                continue
+
+            post = data.get("data", {}).get("post", {})
+            link = post.get("externalLink")
+
+            if _VERBOSE:
+                elapsed = round(time.monotonic() - (deadline - timeout), 1)
+                print(f"[poll {attempt}] +{elapsed}s → link={link!r}")
+
+            if link:
+                return link
+
+            time.sleep(interval)
+
+        return None
 
 
 # ---------------------------------------------------------------------------
