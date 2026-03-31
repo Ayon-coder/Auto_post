@@ -294,44 +294,66 @@ def create_post():
         return jsonify({"success": False, "message": f"Critical error: {str(e)}"}), 500
 
 @app.route("/api/check-link", methods=["GET"])
+@app.route("/check-link", methods=["GET"])  # Alias for simplicity
 def check_link():
     import requests
     platform = request.args.get("platform")
     post_id = request.args.get("post_id")
     
-    if not platform or not post_id:
-        return jsonify({"success": False, "error": "Missing platform or post_id"}), 400
+    if not post_id:
+        return jsonify({"success": False, "error": "Missing post_id"}), 400
     
-    # We use the LinkedIn token for checking any Buffer post status 
-    # (assuming they share the same org/app permissions for status checks)
-    token = os.getenv("LINKEDIN_FB_BUFFER_ACCESS_TOKEN")
-    if platform in ["x", "instagram"]:
-        token = os.getenv("X_INSTA_BUFFER_ACCESS_TOKEN")
-        
-    try:
-        url = f"https://api.bufferapp.com/1/updates/{post_id}.json"
-        res = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=5)
-        data = res.json()
-        
-        service_link = data.get("service_link")
-        update_id = data.get("service_update_id")
-        
-        # Proactive logic for LinkedIn if service_link is null but ID exists
-        if not service_link and platform == "linkedin" and update_id and "urn:li:" in update_id:
-            service_link = f"https://www.linkedin.com/feed/update/{update_id}"
-            
-        error_msg = None
-        if data.get("status") in ["error", "failed"]:
-            error_msg = data.get("client_error") or data.get("error_message") or data.get("error") or "Failed to publish post via Buffer."
+    # Determine tokens to try
+    tokens = []
+    if platform:
+        if platform.lower() in ["x", "instagram", "twitter"]:
+            tokens = [os.getenv("X_INSTA_BUFFER_ACCESS_TOKEN")]
+        else:
+            tokens = [os.getenv("LINKEDIN_FB_BUFFER_ACCESS_TOKEN")]
+    else:
+        # Try both if platform is unknown
+        tokens = [os.getenv("LINKEDIN_FB_BUFFER_ACCESS_TOKEN"), os.getenv("X_INSTA_BUFFER_ACCESS_TOKEN")]
+    
+    tokens = [t for t in tokens if t]
+    if not tokens:
+        return jsonify({"success": False, "error": "Buffer tokens not configured"}), 500
 
-        return jsonify({
-            "success": True, 
-            "link": service_link,
-            "status": data.get("status"),
-            "error_message": error_msg
-        })
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
+    last_error = None
+    for token in tokens:
+        try:
+            url = f"https://api.bufferapp.com/1/updates/{post_id}.json"
+            res = requests.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=5)
+            if res.status_code != 200:
+                last_error = f"Buffer API error: {res.status_code}"
+                continue
+                
+            data = res.json()
+            service_link = data.get("service_link")
+            update_id = data.get("service_update_id")
+            
+            # Detect platform if it was missing
+            effective_platform = platform or data.get("profile_service")
+            
+            # Proactive logic for LinkedIn if service_link is null but ID exists
+            if not service_link and effective_platform == "linkedin" and update_id and "urn:li:" in update_id:
+                service_link = f"https://www.linkedin.com/feed/update/{update_id}"
+                
+            error_msg = None
+            if data.get("status") in ["error", "failed"]:
+                error_msg = data.get("client_error") or data.get("error_message") or data.get("error") or "Failed to publish post via Buffer."
+
+            return jsonify({
+                "success": True, 
+                "ready": bool(service_link),
+                "link": service_link,
+                "status": data.get("status"),
+                "error_message": error_msg
+            })
+        except Exception as e:
+            last_error = str(e)
+            continue
+            
+    return jsonify({"success": False, "error": last_error or "Post not found"}), 404
 
 # This is required for Vercel Serverless Functions
 app_callable = app

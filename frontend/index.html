@@ -313,25 +313,24 @@
 
     async function pollForLink(platform, postId, statusSpan, fallback, resolvedLinks = null) {
         const API_BASE_URL = await resolveApiBaseUrl();
-        let attempts = 0;
-        const maxAttempts = 30; 
+        const maxAttempts = 20; // 20 * 3s = 60s max wait
         
-        const check = async () => {
-            if (!document.body.contains(statusSpan)) return;
+        for (let i = 0; i < maxAttempts; i++) {
+            if (!document.body.contains(statusSpan)) return; // Stop if UI element removed
 
-            attempts++;
+            await new Promise(r => setTimeout(r, 3000)); // wait 3s between calls
+            
             try {
-                const res = await fetch(`${API_BASE_URL}/check-link?platform=${platform}&post_id=${postId}`);
-                if (!res.ok) throw new Error("API call failed");
+                const res = await fetch(`${API_BASE_URL}/check-link?post_id=${postId}&platform=${platform}`);
                 const data = await res.json();
-                
-                if (data.success && data.link) {
+
+                if (data.ready) {
                     if (resolvedLinks) resolvedLinks[platform] = data.link;
                     renderLinkGroup(statusSpan, data.link);
                     return;
                 }
                 
-                if (data.status === 'error' || data.status === 'failed') {
+                if (data.status === "failed" || data.status === "error") {
                     const errorMsg = data.error_message || "Post Failed";
                     statusSpan.innerHTML = `
                         <div class="flex items-center space-x-2">
@@ -345,19 +344,13 @@
                     `;
                     return;
                 }
-                
-                if (attempts >= maxAttempts) {
-                    statusSpan.innerHTML = `<a href="${fallback}" target="_blank" class="hover:underline flex items-center text-amber-700 font-medium italic">Delayed (Check Profile)</a>`;
-                    return;
-                }
-                
-                setTimeout(check, 2000);
             } catch (err) {
                 console.error("Polling error:", err);
-                setTimeout(check, 3000);
             }
-        };
-        setTimeout(check, 2000);
+        }
+        
+        // Final resort if still not ready
+        statusSpan.innerHTML = `<a href="${fallback}" target="_blank" class="hover:underline flex items-center text-amber-700 font-medium italic">Delayed (Check Profile)</a>`;
     }
 
     function hideAlert() { document.getElementById('alertBox').classList.add('hidden'); }

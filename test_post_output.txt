@@ -1,6 +1,0 @@
-Using image URL: https://i.ibb.co/d0TcTBL6/test.jpg
----------------------------------
-[LINKEDIN ERROR] Buffer API Error: Invalid post: Whoops, it looks like you've posted that one recently. Unfortunately, we're not able to post the same thing again so soon!
-[INSTAGRAM] Link: https://www.instagram.com/p/DWgbBnQEdz0/
-[X ERROR] Buffer API Error: Invalid post: Whoops, it looks like you've posted that one recently. Unfortunately, we're not able to post the same thing again so soon!
-[FACEBOOK ERROR] Buffer API Error: Invalid post: Whoops, it looks like you've posted that one recently. Unfortunately, we're not able to post the same thing again so soon!
