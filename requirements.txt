@@ -4,3 +4,4 @@ python-dotenv>=1.0.1
 requests>=2.31.0
 werkzeug>=3.0.0
 gunicorn>=22.0.0
+cloudinary>=1.41.0

@@ -10,20 +10,30 @@ from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 try:
-    from linkedin.create_post import LinkedIn
-    from linkedin.imgbb_client import upload_image_to_imgbb
-    from X.create_post import XPoster
-    from instagram.create_post import InstagramPoster
-    from .facebook.create_post import FacebookPoster
-    from .cloudinary_client import upload_file_to_cloudinary
-except ImportError:
-    # If run as a package (on Vercel)
+    # Package mode (Vercel)
     from .linkedin.create_post import LinkedIn
     from .linkedin.imgbb_client import upload_image_to_imgbb
     from .X.create_post import XPoster
     from .instagram.create_post import InstagramPoster
     from .facebook.create_post import FacebookPoster
     from .cloudinary_client import upload_file_to_cloudinary
+except (ImportError, ValueError):
+    # Local script mode
+    try:
+        from linkedin.create_post import LinkedIn
+        from linkedin.imgbb_client import upload_image_to_imgbb
+        from X.create_post import XPoster
+        from instagram.create_post import InstagramPoster
+        from facebook.create_post import FacebookPoster
+        from cloudinary_client import upload_file_to_cloudinary
+    except ImportError:
+        # Fallback for nested local run
+        from .linkedin.create_post import LinkedIn
+        from .linkedin.imgbb_client import upload_image_to_imgbb
+        from .X.create_post import XPoster
+        from .instagram.create_post import InstagramPoster
+        from .facebook.create_post import FacebookPoster
+        from .cloudinary_client import upload_file_to_cloudinary
 
 # Robust path detection for Vercel
 _HERE = Path(__file__).resolve().parent
