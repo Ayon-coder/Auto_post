@@ -20,9 +20,9 @@ def _channel_cache_key(token: str) -> str:
 
 
 class InstagramPoster:
-    def __init__(self, content, image_urls=None):
+    def __init__(self, content, assets=None):
         self.content = content
-        self.image_urls = image_urls
+        self.assets = assets or []
         
         # Buffer token from .env — Renamed to X_INSTA_BUFFER_ACCESS_TOKEN
         token_manager = TokenManager()
@@ -84,10 +84,10 @@ class InstagramPoster:
             print(f"[OK] Instagram: channel {self.channel_name} [{self.channel_id}]")
 
     def create_post(self):
-        if not self.image_urls:
+        if not self.assets:
             raise ValueError(
                 "Instagram requires at least one image/video for publication. "
-                "Please upload an image and try again."
+                "Please upload a media file and try again."
             )
 
         # Buffer's GraphQL character limit for Instagram is 2200.
@@ -124,11 +124,7 @@ class InstagramPoster:
                 "text": self.content,
                 "mode": "shareNow",
                 "schedulingType": "automatic",
-                "assets": {
-                    "images": [
-                        {"url": url} for url in self.image_urls
-                    ]
-                },
+                "assets": {},
                 "metadata": {
                     "instagram": {
                         "type": "post",
@@ -137,6 +133,22 @@ class InstagramPoster:
                 }
             }
         }
+
+        # Group assets
+        images = [a["url"] for a in self.assets if a["type"] == "image"]
+        videos = [a for a in self.assets if a["type"] == "video"]
+
+        if images:
+            variables["input"]["assets"]["images"] = [{"url": url} for url in images]
+        
+        if videos:
+            variables["input"]["assets"]["video"] = {
+                "url": videos[0]["url"],
+                "title": "Video Post",
+                "thumbnailUrl": videos[0]["thumbnail"]
+            }
+            # Update metadata for video
+            variables["input"]["metadata"]["instagram"]["type"] = "video"
         
         status_post, data_post = self.graphql_query(mutation, variables)
 

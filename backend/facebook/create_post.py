@@ -24,9 +24,9 @@ def _channel_cache_key(token: str) -> str:
 
 
 class FacebookPoster:
-    def __init__(self, content, image_urls=None):
+    def __init__(self, content, assets=None):
         self.content = content
-        self.image_urls = image_urls
+        self.assets = assets or []
         
         # Buffer token from .env — Shared with LinkedIn (LINKEDIN_FB_BUFFER_ACCESS_TOKEN)
         token_manager = TokenManager()
@@ -124,12 +124,24 @@ class FacebookPoster:
             }
         }
         
-        if self.image_urls:
-            variables["input"]["assets"] = {
-                "images": [
-                    {"url": url} for url in self.image_urls
-                ]
-            }
+        if self.assets:
+            variables["input"]["assets"] = {}
+            
+            # Group assets
+            images = [a["url"] for a in self.assets if a["type"] == "image"]
+            videos = [a for a in self.assets if a["type"] == "video"]
+
+            if images:
+                variables["input"]["assets"]["images"] = [{"url": url} for url in images]
+            
+            if videos:
+                variables["input"]["assets"]["video"] = {
+                    "url": videos[0]["url"],
+                    "title": "Video Post",
+                    "thumbnailUrl": videos[0]["thumbnail"]
+                }
+                # Update metadata for video
+                variables["input"]["metadata"]["facebook"]["type"] = "video"
 
         status_post, data_post = self.graphql_query(mutation, variables)
 

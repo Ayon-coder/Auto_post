@@ -14,7 +14,8 @@ try:
     from linkedin.imgbb_client import upload_image_to_imgbb
     from X.create_post import XPoster
     from instagram.create_post import InstagramPoster
-    from facebook.create_post import FacebookPoster
+    from .facebook.create_post import FacebookPoster
+    from .cloudinary_client import upload_file_to_cloudinary
 except ImportError:
     # If run as a package (on Vercel)
     from .linkedin.create_post import LinkedIn
@@ -22,6 +23,7 @@ except ImportError:
     from .X.create_post import XPoster
     from .instagram.create_post import InstagramPoster
     from .facebook.create_post import FacebookPoster
+    from .cloudinary_client import upload_file_to_cloudinary
 
 # Robust path detection for Vercel
 _HERE = Path(__file__).resolve().parent
@@ -133,33 +135,41 @@ def create_post():
     if not platforms:
         return jsonify({"success": False, "message": "At least one platform must be selected."}), 400
 
-    def _upload_all_images(image_files):
-        """Helper to upload a list of file objects to ImgBB and return URLs."""
-        urls = []
-        if not image_files:
-            return urls
+    def _upload_assets(files_list):
+        """Helper to upload files to either ImgBB or Cloudinary based on type."""
+        results = [] # List of {type: 'image'|'video'|'document', url: '...', thumbnail: '...'}
+        if not files_list:
+            return results
             
-        def _upload_one(idx_fn_blob):
-            idx, filename, blob = idx_fn_blob
-            ok, out = upload_image_to_imgbb(io.BytesIO(blob), filename)
-            return idx, ok, out, filename
+        def _upload_one(idx, filename, blob, mimetype):
+            # Images -> ImgBB (legacy)
+            if mimetype.startswith('image/'):
+                ok, out = upload_image_to_imgbb(io.BytesIO(blob), filename)
+                if not ok: raise Exception(f"ImgBB Failed: {out}")
+                return idx, {"type": "image", "url": out, "thumbnail": out}
+            
+            # Videos/PDFs -> Cloudinary
+            ok, url, res_type, thumb = upload_file_to_cloudinary(io.BytesIO(blob), filename)
+            if not ok: raise Exception(f"Cloudinary Failed: {url}")
+            
+            # Map Cloudinary resource_type to Buffer types
+            b_type = "video" if res_type == "video" else "document"
+            return idx, {"type": b_type, "url": url, "thumbnail": thumb}
 
         tasks = []
-        for img in image_files:
+        for img in files_list:
             if img and img.filename:
-                tasks.append((img.filename, img.read()))
+                tasks.append((img.filename, img.read(), img.content_type))
         
         if not tasks:
-            return urls
+            return results
 
         max_workers = min(8, len(tasks))
         ordered = [None] * len(tasks)
         with ThreadPoolExecutor(max_workers=max_workers) as ex:
-            futs = [ex.submit(_upload_one, (i, fn, blob)) for i, (fn, blob) in enumerate(tasks)]
+            futs = [ex.submit(_upload_one, i, fn, blob, mime) for i, (fn, blob, mime) in enumerate(tasks)]
             for fut in as_completed(futs):
-                idx, ok, out, filename = fut.result()
-                if not ok:
-                    raise Exception(f"Image upload failed for {filename}: {out}")
+                idx, out = fut.result()
                 ordered[idx] = out
         return ordered
 
@@ -169,20 +179,20 @@ def create_post():
         if mode == 'custom':
             for p in platforms:
                 p_content = request.form.get(f'{p}_content', '').strip()
-                p_images = request.files.getlist(f'{p}_images')
+                p_files = request.files.getlist(f'{p}_images') # still named 'images' in form for now
                 if not p_content:
                     return jsonify({"success": False, "message": f"Content for {p} is required in custom mode."}), 400
                 
-                urls = _upload_all_images(p_images)
-                platform_data[p] = {"content": p_content, "image_urls": urls if urls else None}
+                assets = _upload_assets(p_files)
+                platform_data[p] = {"content": p_content, "assets": assets}
         else:
             # Same mode
             if not content:
                 return jsonify({"success": False, "message": "Post content is required."}), 400
             
-            urls = _upload_all_images(images)
+            assets = _upload_assets(images)
             for p in platforms:
-                platform_data[p] = {"content": content, "image_urls": urls if urls else None}
+                platform_data[p] = {"content": content, "assets": assets}
     except Exception as e:
         return jsonify({"success": False, "message": f"Upload error: {str(e)}"}), 500
 
@@ -193,7 +203,7 @@ def create_post():
         try:
             data = platform_data.get('linkedin')
             if not data: return (0, "LinkedIn: Skipped", False, None)
-            poster = LinkedIn(data['content'], image_urls=data['image_urls'])
+            poster = LinkedIn(data['content'], assets=data['assets'])
             if not poster.channel_id:
                 return (0, "LinkedIn: Failed (No valid channel)", False, None)
             res = poster.create_post()
@@ -205,7 +215,7 @@ def create_post():
         try:
             data = platform_data.get('x')
             if not data: return (1, "X: Skipped", False, None)
-            poster = XPoster(data['content'], image_urls=data['image_urls'])
+            poster = XPoster(data['content'], assets=data['assets'])
             if not poster.channel_id:
                 return (1, "X: Failed (No valid channel)", False, None)
             res = poster.create_post()
@@ -217,7 +227,7 @@ def create_post():
         try:
             data = platform_data.get('instagram')
             if not data: return (2, "Instagram: Skipped", False, None)
-            poster = InstagramPoster(data['content'], image_urls=data['image_urls'])
+            poster = InstagramPoster(data['content'], assets=data['assets'])
             if not poster.channel_id:
                 return (2, "Instagram: Failed (No valid channel)", False, None)
             res = poster.create_post()
@@ -229,7 +239,7 @@ def create_post():
         try:
             data = platform_data.get('facebook')
             if not data: return (3, "Facebook: Skipped", False, None)
-            poster = FacebookPoster(data['content'], image_urls=data['image_urls'])
+            poster = FacebookPoster(data['content'], assets=data['assets'])
             if not poster.channel_id:
                 return (3, "Facebook: Failed (No valid channel)", False, None)
             res = poster.create_post()

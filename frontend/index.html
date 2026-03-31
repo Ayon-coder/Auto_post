@@ -420,9 +420,10 @@
                     <label class="flex flex-col items-center justify-center w-full h-24 border-2 border-slate-200 border-dashed rounded-xl cursor-pointer bg-slate-50 hover:bg-slate-100 transition">
                         <div class="flex flex-col items-center justify-center pt-5 pb-6">
                             <svg class="w-6 h-6 mb-1 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-                            <p class="text-xs text-slate-500"><span class="font-semibold">Add Images</span> for ${isGlobal ? 'these posts' : 'this post'}</p>
+                            <p class="text-xs text-slate-500"><span class="font-semibold">Add Media</span> for ${isGlobal ? 'these posts' : 'this post'}</p>
+                            <p class="text-[10px] text-slate-400 mt-1">Images, Videos, or PDFs</p>
                         </div>
-                        <input type="file" class="file-input hidden" accept="image/*" multiple data-key="${pKey}">
+                        <input type="file" class="file-input hidden" accept="image/*,video/*,application/pdf" multiple data-key="${pKey}">
                     </label>
                     <div class="preview-container flex flex-wrap gap-2 mt-3" data-key="${pKey}"></div>
                 </div>
@@ -440,24 +441,64 @@
         const updatePreviews = () => {
             previews.innerHTML = '';
             state.platformData[pKey].files.forEach((file, idx) => {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    const div = document.createElement('div');
-                    div.className = 'relative w-16 h-16 rounded-lg border shadow-sm group overflow-hidden cursor-zoom-in';
-                    div.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover" onclick="openLightbox('${e.target.result}')">
-                        <button type="button" class="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl shadow hidden group-hover:block" data-idx="${idx}">×</button>`;
-                    div.querySelector('button').onclick = () => {
+                const div = document.createElement('div');
+                div.className = 'relative w-16 h-16 rounded-lg border shadow-sm group overflow-hidden bg-slate-50';
+                
+                const isImage = file.type.startsWith('image/');
+                const isVideo = file.type.startsWith('video/');
+                const isPdf = file.type === 'application/pdf';
+
+                if (isImage) {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        div.classList.add('cursor-zoom-in');
+                        div.innerHTML = `<img src="${e.target.result}" class="w-full h-full object-cover" onclick="openLightbox('${e.target.result}')">
+                            <button type="button" class="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl shadow hidden group-hover:block z-10" data-idx="${idx}">×</button>`;
+                        div.querySelector('button').onclick = (ev) => {
+                            ev.stopPropagation();
+                            state.platformData[pKey].files.splice(idx, 1);
+                            updatePreviews();
+                        };
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    // Video or PDF placeholders
+                    let icon = '';
+                    let label = '';
+                    let bgColor = '';
+                    
+                    if (isVideo) {
+                        icon = '<svg class="w-6 h-6 text-indigo-500" fill="currentColor" viewBox="0 0 20 20"><path d="M2 6a2 2 0 012-2h12a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V6zm6.707 1.707l2.586 2.586-2.586 2.586A1 1 0 0010 14.586V5.414a1 1 0 00-1.293-.949l-2 2A1 1 0 006.293 7.293l2.586 2.586z"/></svg>';
+                        label = 'VIDEO';
+                        bgColor = 'bg-indigo-50';
+                    } else if (isPdf) {
+                        icon = '<svg class="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clip-rule="evenodd"/></svg>';
+                        label = 'PDF';
+                        bgColor = 'bg-red-50';
+                    }
+                    
+                    div.className = `relative w-16 h-16 rounded-lg border shadow-sm group overflow-hidden ${bgColor} flex flex-col items-center justify-center p-1`;
+                    div.innerHTML = `
+                        ${icon}
+                        <span class="text-[8px] font-bold mt-1 truncate w-full text-center px-1">${file.name}</span>
+                        <button type="button" class="absolute top-0 right-0 bg-red-500 text-white p-0.5 rounded-bl shadow hidden group-hover:block z-10" data-idx="${idx}">×</button>
+                    `;
+                    div.querySelector('button').onclick = (ev) => {
+                        ev.stopPropagation();
                         state.platformData[pKey].files.splice(idx, 1);
                         updatePreviews();
                     };
-                    previews.appendChild(div);
-                };
-                reader.readAsDataURL(file);
+                }
+                previews.appendChild(div);
             });
         };
 
         fileInput.addEventListener('change', (e) => {
-            const files = Array.from(e.target.files).filter(f => f.type.startsWith('image/'));
+            const files = Array.from(e.target.files).filter(f => 
+                f.type.startsWith('image/') || 
+                f.type.startsWith('video/') || 
+                f.type === 'application/pdf'
+            );
             state.platformData[pKey].files = [...state.platformData[pKey].files, ...files];
             updatePreviews();
             e.target.value = ''; // Reset for next selection
