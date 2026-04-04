@@ -361,49 +361,171 @@ def check_link():
         except Exception as e:
             return jsonify({"success": False, "error": f"LinkedIn check error: {str(e)}"}), 500
 
-    # ── Other platforms (X, Instagram, Facebook): use Buffer REST API v1 ──
-    tokens = []
-    if platform:
-        if platform.lower() in ["x", "instagram", "twitter"]:
-            tokens = [os.getenv("X_INSTA_BUFFER_ACCESS_TOKEN")]
-        else:
-            tokens = [os.getenv("LINKEDIN_FB_BUFFER_ACCESS_TOKEN")]
-    else:
-        # Try both if platform is unknown
-        tokens = [os.getenv("LINKEDIN_FB_BUFFER_ACCESS_TOKEN"), os.getenv("X_INSTA_BUFFER_ACCESS_TOKEN")]
-    
-    tokens = [t for t in tokens if t]
-    if not tokens:
-        return jsonify({"success": False, "error": "Buffer tokens not configured"}), 500
-
-    last_error = None
-    for token in tokens:
+    # ── Instagram: use GraphQL (same as LinkedIn — REST v1 doesn't recognise GraphQL IDs) ──
+    if platform and platform.lower() == "instagram":
         try:
-            url = f"https://api.bufferapp.com/1/updates/{post_id}.json"
-            res = req_lib.get(url, headers={"Authorization": f"Bearer {token}"}, timeout=5)
-            if res.status_code != 200:
-                last_error = f"Buffer API error: {res.status_code}"
-                continue
-                
-            data = res.json()
-            service_link = data.get("service_link")
-                
+            access_token = (os.getenv("X_INSTA_BUFFER_ACCESS_TOKEN") or "").strip()
+            if not access_token:
+                return jsonify({"success": False, "error": "Instagram Buffer token not configured"}), 500
+
+            graphql_url = os.getenv("GRAPHQL_URL", "https://api.buffer.com/graphql")
+            http_session = req_lib.Session()
+            http_session.headers.update({
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
+            })
+
+            gql_query = """
+                query GetPost($input: PostInput!) {
+                    post(input: $input) {
+                        id
+                        externalLink
+                        status
+                    }
+                }
+            """
+            gql_res = http_session.post(
+                graphql_url,
+                json={"query": gql_query, "variables": {"input": {"id": post_id}}},
+                timeout=10,
+            )
+            gql_data = gql_res.json()
+
+            if "errors" in gql_data:
+                error_msgs = [e.get("message", "Unknown") for e in gql_data["errors"]]
+                return jsonify({"success": False, "error": "GraphQL: " + ", ".join(error_msgs)}), 500
+
+            post_obj    = gql_data.get("data", {}).get("post") or {}
+            link        = post_obj.get("externalLink")
+            post_status = post_obj.get("status", "unknown")
+
             error_msg = None
-            if data.get("status") in ["error", "failed"]:
-                error_msg = data.get("client_error") or data.get("error_message") or data.get("error") or "Failed to publish post via Buffer."
+            if post_status in ("failed", "error"):
+                error_msg = f"Buffer post failed with status: {post_status}"
 
             return jsonify({
-                "success": True, 
-                "ready": bool(service_link),
-                "link": service_link,
-                "status": data.get("status"),
-                "error_message": error_msg
+                "success": True,
+                "ready": bool(link),
+                "link": link,
+                "status": post_status,
+                "error_message": error_msg,
             })
+
         except Exception as e:
-            last_error = str(e)
-            continue
-            
-    return jsonify({"success": False, "error": last_error or "Post not found"}), 404
+            return jsonify({"success": False, "error": f"Instagram check error: {str(e)}"}), 500
+
+    # ── Facebook: use GraphQL (same pattern — Buffer GraphQL IDs) ──
+    if platform and platform.lower() == "facebook":
+        try:
+            access_token = (
+                os.getenv("LINKEDIN_FB_BUFFER_ACCESS_TOKEN")
+                or os.getenv("LINKEDIN_BUFFER_ACCESS_TOKEN")
+                or ""
+            ).strip()
+            if not access_token:
+                return jsonify({"success": False, "error": "Facebook Buffer token not configured"}), 500
+
+            graphql_url = os.getenv("GRAPHQL_URL", "https://api.buffer.com/graphql")
+            http_session = req_lib.Session()
+            http_session.headers.update({
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
+            })
+
+            gql_query = """
+                query GetPost($input: PostInput!) {
+                    post(input: $input) {
+                        id
+                        externalLink
+                        status
+                    }
+                }
+            """
+            gql_res = http_session.post(
+                graphql_url,
+                json={"query": gql_query, "variables": {"input": {"id": post_id}}},
+                timeout=10,
+            )
+            gql_data = gql_res.json()
+
+            if "errors" in gql_data:
+                error_msgs = [e.get("message", "Unknown") for e in gql_data["errors"]]
+                return jsonify({"success": False, "error": "GraphQL: " + ", ".join(error_msgs)}), 500
+
+            post_obj    = gql_data.get("data", {}).get("post") or {}
+            link        = post_obj.get("externalLink")
+            post_status = post_obj.get("status", "unknown")
+
+            error_msg = None
+            if post_status in ("failed", "error"):
+                error_msg = f"Buffer post failed with status: {post_status}"
+
+            return jsonify({
+                "success": True,
+                "ready": bool(link),
+                "link": link,
+                "status": post_status,
+                "error_message": error_msg,
+            })
+
+        except Exception as e:
+            return jsonify({"success": False, "error": f"Facebook check error: {str(e)}"}), 500
+
+    # ── X / Twitter: use Buffer REST API v1 (REST IDs work for X) ──
+    if platform and platform.lower() in ["x", "twitter"]:
+        try:
+            access_token = (os.getenv("X_INSTA_BUFFER_ACCESS_TOKEN") or "").strip()
+            if not access_token:
+                return jsonify({"success": False, "error": "X Buffer token not configured"}), 500
+
+            graphql_url = os.getenv("GRAPHQL_URL", "https://api.buffer.com/graphql")
+            http_session = req_lib.Session()
+            http_session.headers.update({
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
+            })
+
+            gql_query = """
+                query GetPost($input: PostInput!) {
+                    post(input: $input) {
+                        id
+                        externalLink
+                        status
+                    }
+                }
+            """
+            gql_res = http_session.post(
+                graphql_url,
+                json={"query": gql_query, "variables": {"input": {"id": post_id}}},
+                timeout=10,
+            )
+            gql_data = gql_res.json()
+
+            if "errors" in gql_data:
+                error_msgs = [e.get("message", "Unknown") for e in gql_data["errors"]]
+                return jsonify({"success": False, "error": "GraphQL: " + ", ".join(error_msgs)}), 500
+
+            post_obj    = gql_data.get("data", {}).get("post") or {}
+            link        = post_obj.get("externalLink")
+            post_status = post_obj.get("status", "unknown")
+
+            error_msg = None
+            if post_status in ("failed", "error"):
+                error_msg = f"Buffer post failed with status: {post_status}"
+
+            return jsonify({
+                "success": True,
+                "ready": bool(link),
+                "link": link,
+                "status": post_status,
+                "error_message": error_msg,
+            })
+
+        except Exception as e:
+            return jsonify({"success": False, "error": f"X check error: {str(e)}"}), 500
+
+    # ── Unknown platform fallback ──
+    return jsonify({"success": False, "error": f"Unknown platform: {platform}"}), 400
 
 # This is required for Vercel Serverless Functions
 app_callable = app

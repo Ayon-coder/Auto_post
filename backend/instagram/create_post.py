@@ -387,10 +387,11 @@ class InstagramPoster:
             return None
 
         query = """
-        query GetPost($id: String!) {
-            post(id: $id) {
+        query GetPost($input: PostInput!) {
+            post(input: $input) {
                 id
                 externalLink
+                status
             }
         }
         """
@@ -401,7 +402,7 @@ class InstagramPoster:
         while time.monotonic() < deadline:
             attempt += 1
             try:
-                _, data = self.graphql_query(query, {"id": post_id})
+                _, data = self.graphql_query(query, {"input": {"id": post_id}})
             except InstagramPostError:
                 # Don't surface polling errors — just keep waiting
                 time.sleep(interval)

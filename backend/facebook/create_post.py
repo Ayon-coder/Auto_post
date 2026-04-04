@@ -64,6 +64,9 @@ class FacebookPoster:
                 print(f"[OK] FACEBOOK: channel {self.channel_name} [{self.channel_id}] (cached)")
             return
 
+        # Optional: target a specific Facebook channel by name
+        target_name = (os.getenv("FACEBOOK_CHANNEL_NAME") or "").strip().lower()
+
         query = """
             query { account { organizations { channels { id name service } } } }
         """
@@ -72,16 +75,40 @@ class FacebookPoster:
             raise Exception(f"Failed to fetch Buffer channels: {status}")
             
         orgs = data.get("data", {}).get("account", {}).get("organizations", [])
+        fallback_channel = None  # First Facebook channel we find (not Fixfield)
+        
         for org in orgs:
             channels = org.get("channels", [])
             for channel in channels:
-                # Buffer can identify Facebook as 'facebook' or potentially 'facebook_page'
-                if "facebook" in channel.get("service", "").lower():
+                if "facebook" not in channel.get("service", "").lower():
+                    continue
+                
+                ch_name = channel.get("name", "")
+                
+                # If a target name is set, match exactly
+                if target_name and target_name in ch_name.lower():
                     self.channel_id = channel["id"]
-                    self.channel_name = f"{channel['name']} ({channel['service']})"
+                    self.channel_name = f"{ch_name} ({channel['service']})"
+                    break
+                
+                # Otherwise, prefer non-Fixfield channels
+                if not target_name:
+                    if "fixfield" in ch_name.lower():
+                        # Keep as last resort, but keep looking
+                        if not fallback_channel:
+                            fallback_channel = channel
+                        continue
+                    # This is the one we want
+                    self.channel_id = channel["id"]
+                    self.channel_name = f"{ch_name} ({channel['service']})"
                     break
             if self.channel_id:
                 break
+        
+        # If we didn't find a preferred channel, use fallback (Fixfield)
+        if not self.channel_id and fallback_channel:
+            self.channel_id = fallback_channel["id"]
+            self.channel_name = f"{fallback_channel['name']} ({fallback_channel['service']})"
         
         if not self.channel_id:
             raise Exception("No Facebook channel found for the provided token.")
