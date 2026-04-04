@@ -306,23 +306,13 @@ def check_link():
     # ── LinkedIn: use the GraphQL-based lookup (REST API can't resolve GraphQL IDs) ──
     if platform and platform.lower() == "linkedin":
         try:
-            # Minimal init – we only need the token + HTTP session for get_post_link
-            token_mgr_mod = None
-            try:
-                from .linkedin.token_refresh import TokenManager as _TM
-                token_mgr_mod = _TM
-            except Exception:
-                try:
-                    from linkedin.token_refresh import TokenManager as _TM
-                    token_mgr_mod = _TM
-                except Exception:
-                    pass
-            
-            if token_mgr_mod is None:
-                return jsonify({"success": False, "error": "Cannot load LinkedIn token manager"}), 500
-
-            token_manager = token_mgr_mod()
-            access_token = token_manager.get_valid_token()
+            access_token = (
+                os.getenv("LINKEDIN_FB_BUFFER_ACCESS_TOKEN")
+                or os.getenv("LINKEDIN_BUFFER_ACCESS_TOKEN")
+                or ""
+            ).strip()
+            if not access_token:
+                return jsonify({"success": False, "error": "LinkedIn Buffer token not configured"}), 500
 
             graphql_url = os.getenv("GRAPHQL_URL", "https://api.buffer.com/graphql")
             http_session = req_lib.Session()
