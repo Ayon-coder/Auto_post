@@ -37,7 +37,7 @@ def _classify_buffer_error(msg: str) -> InstagramPostError:
     m = msg.lower()
 
     # --- Media / format errors ---
-    if any(k in m for k in ("aspect ratio", "media", "delete media", "image size", "video")):
+    if any(k in m for k in ("aspect ratio", "delete media", "image size")):
         return InstagramPostError(
             "Instagram rejected the media file. Common causes:\n"
             "  • Wrong aspect ratio — Instagram requires 4:5 to 1.91:1 for feed posts.\n"
@@ -69,7 +69,7 @@ def _classify_buffer_error(msg: str) -> InstagramPostError:
         )
 
     # --- Caption / text errors ---
-    if any(k in m for k in ("caption", "text", "character", "2200")):
+    if any(k in m for k in ("caption", "character limit", "2200")):
         return InstagramPostError(
             "The post caption exceeds Instagram's 2200-character limit. "
             "Please shorten the text and try again.",
@@ -77,8 +77,12 @@ def _classify_buffer_error(msg: str) -> InstagramPostError:
             raw=msg,
         )
 
-    # --- Account / channel errors ---
-    if any(k in m for k in ("account", "channel", "profile", "business", "creator", "not found")):
+    # --- Account / channel errors (use precise multi-word phrases) ---
+    if any(k in m for k in (
+        "account not found", "channel not found", "profile not found",
+        "no instagram", "not connected", "no channel",
+        "business account", "creator account",
+    )):
         return InstagramPostError(
             "The Instagram account could not be found or is not connected to Buffer. "
             "Make sure you have a Business or Creator account and it is linked in Buffer.",
@@ -87,7 +91,7 @@ def _classify_buffer_error(msg: str) -> InstagramPostError:
         )
 
     # --- Scheduling / timing errors ---
-    if any(k in m for k in ("schedule", "time", "slot", "past")):
+    if any(k in m for k in ("schedule", "time slot", "slot", "in the past")):
         return InstagramPostError(
             "The scheduled time is invalid — it may be in the past or conflict with "
             "another scheduled post. Please choose a different time.",
@@ -96,7 +100,7 @@ def _classify_buffer_error(msg: str) -> InstagramPostError:
         )
 
     # --- Network / server errors from Buffer side ---
-    if any(k in m for k in ("server error", "internal", "500", "503", "unavailable")):
+    if any(k in m for k in ("server error", "internal server", "503", "unavailable")):
         return InstagramPostError(
             "Buffer's servers returned an internal error. "
             "This is usually temporary — please wait a moment and try again. "
@@ -374,10 +378,10 @@ class InstagramPoster:
         }
 
     # ------------------------------------------------------------------
-    # Poll for the post link (up to 20 s, ~2 s intervals)
+    # Poll for the post link (up to 60 s, ~3 s intervals)
     # ------------------------------------------------------------------
 
-    def _wait_for_link(self, post_id: str, timeout: int = 20, interval: float = 2.0) -> str | None:
+    def _wait_for_link(self, post_id: str, timeout: int = 60, interval: float = 3.0) -> str | None:
         """
         Poll Buffer for the externalLink of a just-created post.
         Waits up to `timeout` seconds, checking every `interval` seconds.
@@ -410,13 +414,20 @@ class InstagramPoster:
 
             post = data.get("data", {}).get("post", {})
             link = post.get("externalLink")
+            status = post.get("status", "").lower()
 
             if _VERBOSE:
                 elapsed = round(time.monotonic() - (deadline - timeout), 1)
-                print(f"[poll {attempt}] +{elapsed}s → link={link!r}")
+                print(f"[poll {attempt}] +{elapsed}s → status={status!r}  link={link!r}")
 
             if link:
                 return link
+
+            # If Buffer reports the post failed, stop polling early
+            if status in ("failed", "error"):
+                if _VERBOSE:
+                    print(f"[poll {attempt}] Post status is '{status}' — stopping poll")
+                return None
 
             time.sleep(interval)
 
