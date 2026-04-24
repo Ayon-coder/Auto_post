@@ -14,7 +14,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 try:
     # Package mode (Vercel)
     from .linkedin.create_post import LinkedIn
-    from .cloudinary_client import upload_file_to_cloudinary, upload_for_instagram
+    from .cloudinary_client import upload_file_to_cloudinary, upload_for_instagram, upload_once_with_variants
     from .X.create_post import XPoster
     from .instagram.create_post import InstagramPoster
     from .facebook.create_post import FacebookPoster
@@ -22,14 +22,14 @@ except (ImportError, ValueError):
     # Local script mode
     try:
         from linkedin.create_post import LinkedIn
-        from cloudinary_client import upload_file_to_cloudinary, upload_for_instagram
+        from cloudinary_client import upload_file_to_cloudinary, upload_for_instagram, upload_once_with_variants
         from X.create_post import XPoster
         from instagram.create_post import InstagramPoster
         from facebook.create_post import FacebookPoster
     except ImportError:
         # Fallback for nested local run
         from .linkedin.create_post import LinkedIn
-        from .cloudinary_client import upload_file_to_cloudinary, upload_for_instagram
+        from .cloudinary_client import upload_file_to_cloudinary, upload_for_instagram, upload_once_with_variants
         from .X.create_post import XPoster
         from .instagram.create_post import InstagramPoster
         from .facebook.create_post import FacebookPoster
@@ -240,35 +240,25 @@ def create_post():
                     if f and f.filename:
                         raw_shared.append((f.filename, f.read(), f.content_type))
 
-                has_instagram = 'instagram' in platforms
-                has_others = any(p != 'instagram' for p in platforms)
-
+                # Upload each unique file to Cloudinary ONCE, get both URLs
                 standard_pool = [None] * len(raw_shared)
                 instagram_pool = [None] * len(raw_shared)
 
-                if raw_shared and has_others:
-                    def _std_shared(idx, fn, blob):
-                        ok, url, res_type, thumb = upload_file_to_cloudinary(io.BytesIO(blob), fn)
-                        if not ok: raise Exception(f"Cloudinary upload failed: {url}")
-                        t = "video" if res_type == "video" else "image"
-                        return idx, {"type": t, "url": url, "thumbnail": thumb or url}
+                if raw_shared:
+                    def _upload_shared(idx, fn, blob):
+                        result = upload_once_with_variants(io.BytesIO(blob), fn)
+                        if not result["success"]:
+                            raise Exception(f"Cloudinary upload failed: {result.get('error', 'unknown')}")
+                        t = "video" if result["resource_type"] == "video" else "image"
+                        std = {"type": t, "url": result["url"], "thumbnail": result["thumbnail"] or result["url"]}
+                        insta = {"type": t, "url": result["instagram_url"], "thumbnail": result["instagram_thumbnail"] or result["instagram_url"]}
+                        return idx, std, insta
                     with ThreadPoolExecutor(max_workers=min(8, len(raw_shared))) as ex:
-                        futs = [ex.submit(_std_shared, i, fn, blob) for i, (fn, blob, _) in enumerate(raw_shared)]
+                        futs = [ex.submit(_upload_shared, i, fn, blob) for i, (fn, blob, _) in enumerate(raw_shared)]
                         for fut in as_completed(futs):
-                            idx, out = fut.result()
-                            standard_pool[idx] = out
-
-                if raw_shared and has_instagram:
-                    def _insta_shared(idx, fn, blob):
-                        ok, url, res_type, thumb = upload_for_instagram(io.BytesIO(blob), fn)
-                        if not ok: raise Exception(f"Cloudinary upload failed: {url}")
-                        t = "video" if res_type == "video" else "image"
-                        return idx, {"type": t, "url": url, "thumbnail": thumb or url}
-                    with ThreadPoolExecutor(max_workers=min(8, len(raw_shared))) as ex:
-                        futs = [ex.submit(_insta_shared, i, fn, blob) for i, (fn, blob, _) in enumerate(raw_shared)]
-                        for fut in as_completed(futs):
-                            idx, out = fut.result()
-                            instagram_pool[idx] = out
+                            idx, std, insta = fut.result()
+                            standard_pool[idx] = std
+                            instagram_pool[idx] = insta
 
                 for p in platforms:
                     p_content = request.form.get(f'{p}_content', '').strip()
@@ -300,41 +290,31 @@ def create_post():
                     raw_files.append((img.filename, img.read(), img.content_type))
 
             has_instagram = 'instagram' in platforms
-            has_others = any(p != 'instagram' for p in platforms)
 
             standard_assets = []
             instagram_assets = []
 
             if raw_files:
-                # Standard Cloudinary upload for non-Instagram platforms
-                if has_others:
-                    def _std(idx, fn, blob):
-                        ok, url, res_type, thumb = upload_file_to_cloudinary(io.BytesIO(blob), fn)
-                        if not ok: raise Exception(f"Cloudinary upload failed: {url}")
-                        t = "video" if res_type == "video" else "image"
-                        return idx, {"type": t, "url": url, "thumbnail": thumb or url}
-                    ordered = [None] * len(raw_files)
-                    with ThreadPoolExecutor(max_workers=min(8, len(raw_files))) as ex:
-                        futs = [ex.submit(_std, i, fn, blob) for i, (fn, blob, _) in enumerate(raw_files)]
-                        for fut in as_completed(futs):
-                            idx, out = fut.result()
-                            ordered[idx] = out
-                    standard_assets = ordered
+                # Upload each file to Cloudinary ONCE, derive both URL variants
+                def _upload_same(idx, fn, blob):
+                    result = upload_once_with_variants(io.BytesIO(blob), fn)
+                    if not result["success"]:
+                        raise Exception(f"Cloudinary upload failed: {result.get('error', 'unknown')}")
+                    t = "video" if result["resource_type"] == "video" else "image"
+                    std = {"type": t, "url": result["url"], "thumbnail": result["thumbnail"] or result["url"]}
+                    insta = {"type": t, "url": result["instagram_url"], "thumbnail": result["instagram_thumbnail"] or result["instagram_url"]}
+                    return idx, std, insta
 
-                # Instagram-optimized upload (aspect ratio + format fixes)
-                if has_instagram:
-                    def _insta(idx, fn, blob):
-                        ok, url, res_type, thumb = upload_for_instagram(io.BytesIO(blob), fn)
-                        if not ok: raise Exception(f"Cloudinary upload failed: {url}")
-                        t = "video" if res_type == "video" else "image"
-                        return idx, {"type": t, "url": url, "thumbnail": thumb or url}
-                    ordered = [None] * len(raw_files)
-                    with ThreadPoolExecutor(max_workers=min(8, len(raw_files))) as ex:
-                        futs = [ex.submit(_insta, i, fn, blob) for i, (fn, blob, _) in enumerate(raw_files)]
-                        for fut in as_completed(futs):
-                            idx, out = fut.result()
-                            ordered[idx] = out
-                    instagram_assets = ordered
+                std_ordered = [None] * len(raw_files)
+                insta_ordered = [None] * len(raw_files)
+                with ThreadPoolExecutor(max_workers=min(8, len(raw_files))) as ex:
+                    futs = [ex.submit(_upload_same, i, fn, blob) for i, (fn, blob, _) in enumerate(raw_files)]
+                    for fut in as_completed(futs):
+                        idx, std, insta = fut.result()
+                        std_ordered[idx] = std
+                        insta_ordered[idx] = insta
+                standard_assets = std_ordered
+                instagram_assets = insta_ordered
 
             for p in platforms:
                 if p == 'instagram':

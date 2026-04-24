@@ -106,3 +106,74 @@ def upload_for_instagram(file_stream, filename):
 
     except Exception as e:
         return False, str(e), None, None
+
+
+def _instagram_transform(url, width, height):
+    """
+    Apply Instagram-safe Cloudinary delivery transforms to an existing URL.
+    No re-upload needed — just URL manipulation.
+    """
+    if not (width and height):
+        return url
+    ratio = width / height
+    t1 = "c_limit,w_1080"
+    if ratio < 0.8:
+        t2 = "ar_4:5,c_pad,b_auto,f_jpg,q_auto"
+    elif ratio > 1.91:
+        t2 = "ar_1.91:1,c_pad,b_auto,f_jpg,q_auto"
+    else:
+        t2 = "f_jpg,q_auto"
+    return url.replace("/upload/", f"/upload/{t1}/{t2}/")
+
+
+def upload_once_with_variants(file_stream, filename):
+    """
+    Upload a file to Cloudinary ONCE and return both standard and
+    Instagram-optimised URLs from the same upload.
+
+    Returns dict:
+        success, url, instagram_url, resource_type, thumbnail, instagram_thumbnail
+    """
+    try:
+        upload_result = cloudinary.uploader.upload(
+            file_stream,
+            public_id=filename.split('.')[0],
+            resource_type="auto",
+        )
+
+        url       = upload_result.get("secure_url")
+        res_type  = upload_result.get("resource_type")
+        width     = upload_result.get("width", 0)
+        height    = upload_result.get("height", 0)
+
+        # Standard thumbnail
+        thumbnail = None
+        if res_type == "video":
+            thumbnail = url.rsplit('.', 1)[0] + ".jpg"
+
+        # Instagram-safe delivery URL (same resource, different transforms)
+        if res_type == "image" and width and height:
+            insta_url = _instagram_transform(url, width, height)
+            insta_thumb = insta_url
+        else:
+            insta_url = url
+            insta_thumb = thumbnail
+
+        return {
+            "success": True,
+            "url": url,
+            "instagram_url": insta_url,
+            "resource_type": res_type,
+            "thumbnail": thumbnail,
+            "instagram_thumbnail": insta_thumb,
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "url": None,
+            "instagram_url": None,
+            "resource_type": None,
+            "thumbnail": None,
+            "instagram_thumbnail": None,
+        }
