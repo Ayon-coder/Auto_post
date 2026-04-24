@@ -805,11 +805,11 @@
             });
         });
 
-        // --- Client-side image compression ---
-        function compressImage(file, maxDim = 1920, quality = 0.82) {
+        // --- Client-side image compression (light) ---
+        function compressImage(file, maxDim = 1920, quality = 0.88) {
             return new Promise((resolve) => {
-                // Skip non-image or tiny files (<500KB) — no benefit from re-encoding
-                if (!file.type.startsWith('image/') || file.size < 512000) {
+                // Skip non-image or small files (<1MB)
+                if (!file.type.startsWith('image/') || file.size < 1048576) {
                     resolve(file);
                     return;
                 }
@@ -818,7 +818,6 @@
                 img.onload = () => {
                     URL.revokeObjectURL(url);
                     let { width, height } = img;
-                    // Scale down if larger than maxDim (preserves aspect ratio)
                     if (width > maxDim || height > maxDim) {
                         const scale = maxDim / Math.max(width, height);
                         width = Math.round(width * scale);
@@ -831,7 +830,7 @@
                     ctx.drawImage(img, 0, 0, width, height);
                     canvas.toBlob((blob) => {
                         if (!blob || blob.size >= file.size) {
-                            resolve(file); // keep original if compression didn't help
+                            resolve(file);
                             return;
                         }
                         const ext = file.name.replace(/\.[^.]+$/, '');
@@ -845,6 +844,14 @@
 
         async function compressFiles(files) {
             return Promise.all(files.map(f => compressImage(f)));
+        }
+
+        // --- File dedup: hash binary content via SHA-256 ---
+        async function getFileHash(file) {
+            const buffer = await file.arrayBuffer();
+            const hashBuf = await crypto.subtle.digest('SHA-256', buffer);
+            const arr = Array.from(new Uint8Array(hashBuf));
+            return arr.map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
         // Form Submit
@@ -862,7 +869,7 @@
             }
 
             submitBtn.disabled = true;
-            submitText.innerHTML = '<span class="loader"></span> Compressing & Publishing...';
+            submitText.innerHTML = '<span class="loader"></span> Publishing...';
 
             try {
                 const formData = new FormData();
@@ -874,11 +881,28 @@
                     const compressed = await compressFiles(state.platformData.global.files);
                     compressed.forEach(f => formData.append('images', f));
                 } else {
+                    // Deduplicate files across platforms by binary content
+                    const hashToIndex = new Map(); // SHA-256 hash -> pool index
+                    const uniqueFiles = [];        // pool of unique compressed files
+                    const platformIndices = {};    // platform -> [index, index, ...]
+
                     for (const p of state.selectedPlatforms) {
                         formData.append(`${p}_content`, state.platformData[p].content);
+                        platformIndices[p] = [];
                         const compressed = await compressFiles(state.platformData[p].files);
-                        compressed.forEach(f => formData.append(`${p}_images`, f));
+                        for (const file of compressed) {
+                            const hash = await getFileHash(file);
+                            if (!hashToIndex.has(hash)) {
+                                hashToIndex.set(hash, uniqueFiles.length);
+                                uniqueFiles.push(file);
+                            }
+                            platformIndices[p].push(hashToIndex.get(hash));
+                        }
+                        formData.append(`${p}_image_indices`, platformIndices[p].join(','));
                     }
+
+                    // Send each unique file only once
+                    uniqueFiles.forEach(f => formData.append('shared_images', f));
                 }
 
                 const response = await fetch(`${API_BASE_URL}/post`, {

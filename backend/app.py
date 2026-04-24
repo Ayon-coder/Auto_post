@@ -229,14 +229,65 @@ def create_post():
     platform_data = {}
     try:
         if mode == 'custom':
-            for p in platforms:
-                p_content = request.form.get(f'{p}_content', '').strip()
-                p_files = request.files.getlist(f'{p}_images')
-                if not p_content:
-                    return jsonify({"success": False, "message": f"Content for {p} is required in custom mode."}), 400
-                
-                assets = _upload_assets(p_files, for_instagram=(p == 'instagram'))
-                platform_data[p] = {"content": p_content, "assets": assets}
+            # Deduplicated format: frontend sends unique files as 'shared_images'
+            # and per-platform '{platform}_image_indices' (comma-separated pool indices).
+            shared_files = request.files.getlist('shared_images')
+
+            if shared_files:
+                # Read unique file blobs once
+                raw_shared = []
+                for f in shared_files:
+                    if f and f.filename:
+                        raw_shared.append((f.filename, f.read(), f.content_type))
+
+                has_instagram = 'instagram' in platforms
+                has_others = any(p != 'instagram' for p in platforms)
+
+                standard_pool = [None] * len(raw_shared)
+                instagram_pool = [None] * len(raw_shared)
+
+                if raw_shared and has_others:
+                    def _std_shared(idx, fn, blob):
+                        ok, url, res_type, thumb = upload_file_to_cloudinary(io.BytesIO(blob), fn)
+                        if not ok: raise Exception(f"Cloudinary upload failed: {url}")
+                        t = "video" if res_type == "video" else "image"
+                        return idx, {"type": t, "url": url, "thumbnail": thumb or url}
+                    with ThreadPoolExecutor(max_workers=min(8, len(raw_shared))) as ex:
+                        futs = [ex.submit(_std_shared, i, fn, blob) for i, (fn, blob, _) in enumerate(raw_shared)]
+                        for fut in as_completed(futs):
+                            idx, out = fut.result()
+                            standard_pool[idx] = out
+
+                if raw_shared and has_instagram:
+                    def _insta_shared(idx, fn, blob):
+                        ok, url, res_type, thumb = upload_for_instagram(io.BytesIO(blob), fn)
+                        if not ok: raise Exception(f"Cloudinary upload failed: {url}")
+                        t = "video" if res_type == "video" else "image"
+                        return idx, {"type": t, "url": url, "thumbnail": thumb or url}
+                    with ThreadPoolExecutor(max_workers=min(8, len(raw_shared))) as ex:
+                        futs = [ex.submit(_insta_shared, i, fn, blob) for i, (fn, blob, _) in enumerate(raw_shared)]
+                        for fut in as_completed(futs):
+                            idx, out = fut.result()
+                            instagram_pool[idx] = out
+
+                for p in platforms:
+                    p_content = request.form.get(f'{p}_content', '').strip()
+                    if not p_content:
+                        return jsonify({"success": False, "message": f"Content for {p} is required in custom mode."}), 400
+                    indices_str = request.form.get(f'{p}_image_indices', '')
+                    indices = [int(i.strip()) for i in indices_str.split(',') if i.strip()]
+                    pool = instagram_pool if p == 'instagram' else standard_pool
+                    assets = [pool[i] for i in indices if i < len(pool) and pool[i]]
+                    platform_data[p] = {"content": p_content, "assets": assets}
+            else:
+                # Fallback: legacy per-platform files (no dedup)
+                for p in platforms:
+                    p_content = request.form.get(f'{p}_content', '').strip()
+                    p_files = request.files.getlist(f'{p}_images')
+                    if not p_content:
+                        return jsonify({"success": False, "message": f"Content for {p} is required in custom mode."}), 400
+                    assets = _upload_assets(p_files, for_instagram=(p == 'instagram'))
+                    platform_data[p] = {"content": p_content, "assets": assets}
         else:
             # Same mode — read blobs once, upload per-service as needed
             if not content:
