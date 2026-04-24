@@ -305,6 +305,20 @@ class InstagramPoster:
         }
         """
 
+        images = [a["url"] for a in self.assets if a["type"] == "image"]
+        videos = [a for a in self.assets if a["type"] == "video"]
+
+        # Decide Instagram post type:
+        #   - "carousel" for 2+ images (supports up to 10)
+        #   - "video"    for a video asset
+        #   - "post"     for a single image
+        if videos:
+            insta_type = "video"
+        elif len(images) > 1:
+            insta_type = "carousel"
+        else:
+            insta_type = "post"
+
         variables = {
             "input": {
                 "channelId": self.channel_id,
@@ -314,15 +328,12 @@ class InstagramPoster:
                 "assets": {},
                 "metadata": {
                     "instagram": {
-                        "type": "post",
+                        "type": insta_type,
                         "shouldShareToFeed": True,
                     }
                 },
             }
         }
-
-        images = [a["url"] for a in self.assets if a["type"] == "image"]
-        videos = [a for a in self.assets if a["type"] == "video"]
 
         if images:
             variables["input"]["assets"]["images"] = [{"url": url} for url in images]
@@ -333,7 +344,6 @@ class InstagramPoster:
                 "title": "Video Post",
                 "thumbnailUrl": videos[0]["thumbnail"],
             }
-            variables["input"]["metadata"]["instagram"]["type"] = "video"
 
         status_post, data_post = self.graphql_query(mutation, variables)
 
