@@ -107,6 +107,9 @@ def upload_for_instagram(file_stream, filename):
                 t2 = "f_jpg,q_auto"
 
             optimized_url = url.replace("/upload/", f"/upload/{t1}/{t2}/")
+            # Ensure file extension matches the f_jpg format transform,
+            # otherwise Cloudinary may 404 and Buffer can't fetch dimensions.
+            optimized_url = _force_jpg_extension(optimized_url)
             return True, optimized_url, res_type, optimized_url
 
         # ── Video: return as-is (Buffer handles video encoding) ──
@@ -118,6 +121,22 @@ def upload_for_instagram(file_stream, filename):
 
     except Exception as e:
         return False, str(e), None, None
+
+
+def _force_jpg_extension(url):
+    """Replace the file extension in a Cloudinary URL with .jpg.
+
+    When we request ``f_jpg`` in the transformation chain Cloudinary converts
+    the image to JPEG, but the delivery URL still carries the *original*
+    extension (e.g. ``.png``, ``.webp``).  Some consumers — notably Buffer —
+    try to fetch the URL as-is and fail with 404 because Cloudinary expects
+    the extension to match the requested format.
+    """
+    # Only touch the last dot-segment (the extension)
+    dot = url.rfind('.')
+    if dot == -1:
+        return url + ".jpg"
+    return url[:dot] + ".jpg"
 
 
 def _instagram_transform(url, width, height):
@@ -135,7 +154,8 @@ def _instagram_transform(url, width, height):
         t2 = "ar_1.91:1,c_pad,b_auto,f_jpg,q_auto"
     else:
         t2 = "f_jpg,q_auto"
-    return url.replace("/upload/", f"/upload/{t1}/{t2}/")
+    result = url.replace("/upload/", f"/upload/{t1}/{t2}/")
+    return _force_jpg_extension(result)
 
 
 def upload_once_with_variants(file_stream, filename):
