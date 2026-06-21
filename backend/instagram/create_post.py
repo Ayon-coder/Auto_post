@@ -325,7 +325,6 @@ class InstagramPoster:
                 "text": self.content,
                 "mode": "shareNow",
                 "schedulingType": "automatic",
-                "assets": {},
                 "metadata": {
                     "instagram": {
                         "type": insta_type,
@@ -335,15 +334,19 @@ class InstagramPoster:
             }
         }
 
-        if images:
-            variables["input"]["assets"]["images"] = [{"url": url} for url in images]
+        # Buffer's CreatePostInput.assets is now [AssetInput!] — a list where
+        # each entry wraps exactly one of image / video / document / link.
+        asset_list = [{"image": {"url": url}} for url in images]
 
         if videos:
-            variables["input"]["assets"]["video"] = {
-                "url": videos[0]["url"],
-                "title": "Video Post",
-                "thumbnailUrl": videos[0]["thumbnail"],
-            }
+            asset_list.append({
+                "video": {
+                    "url": videos[0]["url"],
+                    "thumbnailUrl": videos[0]["thumbnail"],
+                }
+            })
+
+        variables["input"]["assets"] = asset_list
 
         status_post, data_post = self.graphql_query(mutation, variables)
 

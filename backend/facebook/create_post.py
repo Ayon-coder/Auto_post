@@ -144,23 +144,29 @@ class FacebookPoster:
         }
         
         if self.assets:
-            variables["input"]["assets"] = {}
-            
+            # Buffer's CreatePostInput.assets is now [AssetInput!] — a list where
+            # each entry wraps exactly one of image / video / document / link.
+            asset_list = []
+
             # Group assets
             images = [a["url"] for a in self.assets if a["type"] == "image"]
             videos = [a for a in self.assets if a["type"] == "video"]
 
-            if images:
-                variables["input"]["assets"]["images"] = [{"url": url} for url in images]
-            
+            for url in images:
+                asset_list.append({"image": {"url": url}})
+
             if videos:
-                variables["input"]["assets"]["video"] = {
-                    "url": videos[0]["url"],
-                    "title": "Video Post",
-                    "thumbnailUrl": videos[0]["thumbnail"]
-                }
+                asset_list.append({
+                    "video": {
+                        "url": videos[0]["url"],
+                        "thumbnailUrl": videos[0]["thumbnail"],
+                    }
+                })
                 # Update metadata for video
                 variables["input"]["metadata"]["facebook"]["type"] = "video"
+
+            if asset_list:
+                variables["input"]["assets"] = asset_list
 
         status_post, data_post = self.graphql_query(mutation, variables)
 
