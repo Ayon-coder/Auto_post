@@ -314,8 +314,6 @@ class InstagramPoster:
         #   - "post"     for a single image
         if videos:
             insta_type = "video"
-        elif len(images) > 1:
-            insta_type = "carousel"
         else:
             insta_type = "post"
 
