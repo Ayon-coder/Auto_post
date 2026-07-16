@@ -74,9 +74,12 @@ class LinkedIn:
         """
         status, data = self.graphql_query(query)
 
+        # Buffer's GraphQL may return a partial response: `data` with the channels
+        # we can see, plus an `errors` array for sub-fields we can't authorize.
+        # Only treat errors as fatal if we also fail to locate the channel below.
+        error_msgs = ""
         if "errors" in data:
-            msgs = ", ".join(e.get("message", "unknown") for e in data["errors"])
-            raise Exception(f"Buffer API error fetching channels: {msgs}")
+            error_msgs = ", ".join(e.get("message", "unknown") for e in data["errors"])
 
         orgs = ((data.get("data") or {}).get("account") or {}).get("organizations") or []
         for org in orgs:
@@ -89,6 +92,8 @@ class LinkedIn:
                 break
 
         if not self.channel_id:
+            if error_msgs:
+                raise Exception(f"Buffer API error fetching channels: {error_msgs}")
             raise Exception("No LinkedIn channel found for the provided LinkedIn token.")
 
         _channel_cache[key] = (self.channel_id, self.channel_name)

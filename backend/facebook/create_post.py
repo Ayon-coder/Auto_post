@@ -74,9 +74,13 @@ class FacebookPoster:
         if status != 200:
             raise Exception(f"Failed to fetch Buffer channels: {status}")
 
+        # Buffer's GraphQL may return a partial response: `data` with the channels
+        # we can see, plus an `errors` array for sub-fields we can't authorize.
+        # Only treat errors as fatal if we also fail to locate the channel below.
         if "errors" in data:
-            msgs = ", ".join(e.get("message", "unknown") for e in data["errors"])
-            raise Exception(f"Buffer API error fetching channels: {msgs}")
+            error_msgs = ", ".join(e.get("message", "unknown") for e in data["errors"])
+        else:
+            error_msgs = ""
 
         orgs = ((data.get("data") or {}).get("account") or {}).get("organizations") or []
         fallback_channel = None  # First Facebook channel found (used if target doesn't match)
@@ -107,6 +111,8 @@ class FacebookPoster:
             self.channel_name = f"{fallback_channel['name']} ({fallback_channel['service']})"
 
         if not self.channel_id:
+            if error_msgs:
+                raise Exception(f"Buffer API error fetching channels: {error_msgs}")
             raise Exception("No Facebook channel found for the provided token.")
         _channel_cache[key] = (self.channel_id, self.channel_name)
         if _VERBOSE:
