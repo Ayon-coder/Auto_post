@@ -60,22 +60,31 @@ class XPoster:
                 print(f"[OK] X: channel {self.channel_name} [{self.channel_id}] (cached)")
             return
 
-        query = """
-            query { account { organizations { channels { id name service } } } }
-        """
-        status, data = self.graphql_query(query)
+        # Buffer no longer allows the nested account->organizations->channels
+        # query (returns FORBIDDEN). Fetch org ids first, then use the
+        # top-level channels(input: {organizationId}) query per org.
+        status, data = self.graphql_query(
+            "query { account { organizations { id name } } }"
+        )
 
-        # Buffer's GraphQL may return a partial response: `data` with the channels
-        # we can see, plus an `errors` array for sub-fields we can't authorize.
-        # Only treat errors as fatal if we also fail to locate the channel below.
         error_msgs = ""
         if "errors" in data:
             error_msgs = ", ".join(e.get("message", "unknown") for e in data["errors"])
 
         orgs = ((data.get("data") or {}).get("account") or {}).get("organizations") or []
+        channels_query = """
+            query GetChannels($input: ChannelsInput!) {
+                channels(input: $input) { id name service }
+            }
+        """
         for org in orgs:
-            channels = org.get("channels", [])
-            for channel in channels:
+            status, data_ch = self.graphql_query(
+                channels_query, {"input": {"organizationId": org["id"]}}
+            )
+            if "errors" in data_ch:
+                error_msgs = ", ".join(e.get("message", "unknown") for e in data_ch["errors"])
+                continue
+            for channel in (data_ch.get("data") or {}).get("channels") or []:
                 # Buffer identifies X as 'twitter'
                 if channel.get("service") in ["twitter", "x"]:
                     self.channel_id = channel["id"]

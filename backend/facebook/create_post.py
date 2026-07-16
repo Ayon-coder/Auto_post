@@ -67,26 +67,35 @@ class FacebookPoster:
         # Optional: prefer a specific Facebook channel by name (from env)
         target_name = (os.getenv("FACEBOOK_CHANNEL_NAME") or "").strip().lower()
 
-        query = """
-            query { account { organizations { channels { id name service } } } }
-        """
-        status, data = self.graphql_query(query)
+        # Buffer no longer allows the nested account->organizations->channels
+        # query (returns FORBIDDEN). Fetch org ids first, then use the
+        # top-level channels(input: {organizationId}) query per org.
+        status, data = self.graphql_query(
+            "query { account { organizations { id name } } }"
+        )
         if status != 200:
             raise Exception(f"Failed to fetch Buffer channels: {status}")
 
-        # Buffer's GraphQL may return a partial response: `data` with the channels
-        # we can see, plus an `errors` array for sub-fields we can't authorize.
-        # Only treat errors as fatal if we also fail to locate the channel below.
+        error_msgs = ""
         if "errors" in data:
             error_msgs = ", ".join(e.get("message", "unknown") for e in data["errors"])
-        else:
-            error_msgs = ""
 
         orgs = ((data.get("data") or {}).get("account") or {}).get("organizations") or []
         fallback_channel = None  # First Facebook channel found (used if target doesn't match)
+        channels_query = """
+            query GetChannels($input: ChannelsInput!) {
+                channels(input: $input) { id name service }
+            }
+        """
 
         for org in orgs:
-            for channel in org.get("channels", []):
+            status, data_ch = self.graphql_query(
+                channels_query, {"input": {"organizationId": org["id"]}}
+            )
+            if "errors" in data_ch:
+                error_msgs = ", ".join(e.get("message", "unknown") for e in data_ch["errors"])
+                continue
+            for channel in (data_ch.get("data") or {}).get("channels") or []:
                 if "facebook" not in channel.get("service", "").lower():
                     continue
 

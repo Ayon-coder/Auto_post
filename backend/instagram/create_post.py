@@ -233,19 +233,32 @@ class InstagramPoster:
                 print(f"[OK] Instagram: channel {self.channel_name} [{self.channel_id}] (cached)")
             return
 
-        query = """
-            query { account { organizations { channels { id name service } } } }
-        """
-        status, data = self.graphql_query(query)
+        # Buffer no longer allows the nested account->organizations->channels
+        # query (returns FORBIDDEN). Fetch org ids first, then use the
+        # top-level channels(input: {organizationId}) query per org.
+        status, data = self.graphql_query(
+            "query { account { organizations { id name } } }"
+        )
 
-        # Check for GraphQL-level errors in the channel fetch itself
+        # Check for GraphQL-level errors in the org fetch itself
         if "errors" in data:
             msgs = ", ".join(e.get("message", "unknown") for e in data["errors"])
             raise _classify_buffer_error(msgs)
 
         orgs = ((data.get("data") or {}).get("account") or {}).get("organizations") or []
+        channels_query = """
+            query GetChannels($input: ChannelsInput!) {
+                channels(input: $input) { id name service }
+            }
+        """
         for org in orgs:
-            for channel in org.get("channels", []):
+            status, data_ch = self.graphql_query(
+                channels_query, {"input": {"organizationId": org["id"]}}
+            )
+            if "errors" in data_ch:
+                msgs = ", ".join(e.get("message", "unknown") for e in data_ch["errors"])
+                raise _classify_buffer_error(msgs)
+            for channel in (data_ch.get("data") or {}).get("channels") or []:
                 if channel.get("service") == "instagram":
                     self.channel_id = channel["id"]
                     self.channel_name = f"{channel['name']} ({channel['service']})"
