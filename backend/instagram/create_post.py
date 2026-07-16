@@ -243,7 +243,7 @@ class InstagramPoster:
             msgs = ", ".join(e.get("message", "unknown") for e in data["errors"])
             raise _classify_buffer_error(msgs)
 
-        orgs = data.get("data", {}).get("account", {}).get("organizations", [])
+        orgs = ((data.get("data") or {}).get("account") or {}).get("organizations") or []
         for org in orgs:
             for channel in org.get("channels", []):
                 if channel.get("service") == "instagram":
@@ -357,7 +357,7 @@ class InstagramPoster:
             error_msgs = ", ".join(e.get("message", "Unknown error") for e in data_post["errors"])
             raise _classify_buffer_error(error_msgs)
 
-        post_result = data_post.get("data", {}).get("createPost", {})
+        post_result = (data_post.get("data") or {}).get("createPost") or {}
         result_type = post_result.get("__typename")
 
         if result_type != "PostActionSuccess":
@@ -423,7 +423,7 @@ class InstagramPoster:
                 time.sleep(interval)
                 continue
 
-            post = data.get("data", {}).get("post", {})
+            post = (data.get("data") or {}).get("post") or {}
             link = post.get("externalLink")
             status = post.get("status", "").lower()
 

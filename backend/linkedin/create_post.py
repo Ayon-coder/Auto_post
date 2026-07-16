@@ -74,7 +74,11 @@ class LinkedIn:
         """
         status, data = self.graphql_query(query)
 
-        orgs = data.get("data", {}).get("account", {}).get("organizations", [])
+        if "errors" in data:
+            msgs = ", ".join(e.get("message", "unknown") for e in data["errors"])
+            raise Exception(f"Buffer API error fetching channels: {msgs}")
+
+        orgs = ((data.get("data") or {}).get("account") or {}).get("organizations") or []
         for org in orgs:
             for channel in org.get("channels", []):
                 if channel.get("service") == "linkedin":
@@ -177,7 +181,7 @@ class LinkedIn:
             error_msgs = [e.get("message", "Unknown error") for e in data_post["errors"]]
             raise Exception("GraphQL Error: " + ", ".join(error_msgs))
 
-        post_result = data_post.get("data", {}).get("createPost", {})
+        post_result = (data_post.get("data") or {}).get("createPost") or {}
         if post_result.get("__typename") != "PostActionSuccess":
             error_msg = post_result.get("message", "Unknown error creating post")
             raise Exception(f"Buffer API Error: {error_msg}")
